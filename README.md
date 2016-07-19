@@ -1,2 +1,2 @@
 # zephyr
-Python data serialization/validation library
+Data serialization and validation library

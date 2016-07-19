@@ -1,0 +1,4 @@
+include *.md LICENSE
+recursive-include tests *
+recursive-exclude tests *.pyc
+recursive-exclude tests *.pyo

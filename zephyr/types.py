@@ -100,7 +100,7 @@ class String(Type):
         return super(String, self).load(data)
 
     def dump(self, value):
-        if not isinstance(data, str) and not isinstance(data, unicode):
+        if not isinstance(value, str) and not isinstance(value, unicode):
             self._fail('invalid_type', expected='string')
         return super(String, self).dump(str(value))
 
@@ -277,10 +277,9 @@ class Object(Type):
 
     def __init__(self, fields, **kwargs):
         super(Object, self).__init__(**kwargs)
-        self.fields = {
-            name: field if isinstance(field, Field) else Field(field)
-            for name, field in fields.iteritems()
-        }
+        self.fields = {}
+        for name, field in fields.iteritems():
+            self.fields[name] = field if isinstance(field, Field) else Field(field)
 
     def load(self, data):
         if not isinstance(data, dict):
