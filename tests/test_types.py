@@ -2,7 +2,7 @@ import pytest
 from zephyr.types import MISSING, ValidationError, Type, String, Integer, Boolean, \
     List, Dict, Field, AttributeField, MethodField, FunctionField, ConstantField, \
     Object
-from zephyr.utils import merge_errors
+from zephyr.errors import merge_errors
 from collections import namedtuple
 
 
