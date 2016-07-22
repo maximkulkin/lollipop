@@ -28,7 +28,8 @@ class ValidationErrorBuilder(object):
 
 class Type(object):
     default_error_messages = {
-        'invalid_type': 'Value should be {expected}'
+        'invalid_type': 'Value should be {expected}',
+        'required': 'Value is required',
     }
 
     def __init__(self, validate=None, error_messages=None):
@@ -39,7 +40,8 @@ class Type(object):
             validate = [validate]
 
         self._validators = validate
-        self._error_messages = error_messages or self.default_error_messages
+        self._error_messages = dict(self.default_error_messages,
+                                    **(error_messages or {}))
 
     def validate(self, data):
         try:
@@ -83,11 +85,17 @@ class Any(Type):
 
 class Integer(Type):
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not isinstance(data, int):
             self._fail('invalid_type', expected='integer')
         return super(Integer, self).load(data)
 
     def dump(self, value):
+        if value is MISSING or value is None:
+            self._fail('required')
+
         if not isinstance(data, int):
             self._fail('invalid_type', expected='integer')
         return super(Integer, self).dump(value)
@@ -95,11 +103,17 @@ class Integer(Type):
 
 class String(Type):
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not isinstance(data, str) and not isinstance(data, unicode):
             self._fail('invalid_type', expected='string')
         return super(String, self).load(data)
 
     def dump(self, value):
+        if value is MISSING or value is None:
+            self._fail('required')
+
         if not isinstance(value, str) and not isinstance(value, unicode):
             self._fail('invalid_type', expected='string')
         return super(String, self).dump(str(value))
@@ -107,11 +121,17 @@ class String(Type):
 
 class Boolean(Type):
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not isinstance(data, bool):
             self._fail('invalid_type', expected='boolean')
         return super(Boolean, self).load(data)
 
     def dump(self, value):
+        if value is MISSING or value is None:
+            self._fail('required')
+
         if not isinstance(data, bool):
             self._fail('invalid_type', expected='boolean')
         return super(Boolean, self).dump(bool(value))
@@ -123,6 +143,9 @@ class List(Type):
         self.item_type = item_type
 
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         # TODO: Make more intelligent check for collections
         if not is_list(data):
             self._fail('invalid_type', expected='list')
@@ -139,6 +162,9 @@ class List(Type):
         return super(List, self).load(items)
 
     def dump(self, items):
+        if items is MISSING or items is None:
+            self._fail('required')
+
         if not is_list(value):
             self._fail('invalid_type', expected='list')
 
@@ -160,6 +186,9 @@ class Tuple(Type):
         self.item_types = item_types
 
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not is_list(data):
             self._fail('invalid_type', expected='list')
 
@@ -178,6 +207,9 @@ class Tuple(Type):
         return super(Tuple, self).load(result)
 
     def dump(self, value):
+        if value is MISSING or value is None:
+            self._fail('required')
+
         if not is_list(data):
             self._fail('invalid_type', expected='list')
 
@@ -202,6 +234,9 @@ class Dict(Type):
         self.value_type = value_type
 
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not is_dict(data):
             self._fail('invalid_type', expected='dict')
 
@@ -218,6 +253,9 @@ class Dict(Type):
         return super(Object, self).load(result)
 
     def dump(self, value):
+        if value is MISSING or value is None:
+            self._fail('required')
+
         if not is_dict(value):
             self._fail('invalid_type', expected='dict')
 
@@ -282,6 +320,9 @@ class Object(Type):
             self.fields[name] = field if isinstance(field, Field) else Field(field)
 
     def load(self, data):
+        if data is MISSING or data is None:
+            self._fail('required')
+
         if not is_dict(data):
             self._fail('invalid_type', expected='dict')
 
@@ -300,6 +341,9 @@ class Object(Type):
         return self.constructor(super(Object, self).load(result))
 
     def dump(self, obj):
+        if obj is MISSING or obj is None:
+            self._fail('required')
+
         errors_builder = ValidationErrorBuilder()
         result = {}
         for name, field in self.fields.iteritems():
