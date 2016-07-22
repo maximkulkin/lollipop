@@ -1,30 +1,11 @@
-from zephyr.utils import merge_errors, is_list, is_dict
+from zephyr.errors import ValidationError, ValidationErrorBuilder, merge_errors
+from zephyr.utils import is_list, is_dict
 from zephyr.compat import string_types, int_types, iteritems
 
 
 MISSING = object()
 
 MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not exist'
-
-
-class ValidationError(Exception):
-    def __init__(self, messages):
-        super(ValidationError, self).__init__('Invalid data')
-        # TODO: normalize messages
-        self.messages = messages
-
-
-class ValidationErrorBuilder(object):
-    def __init__(self):
-        super(ValidationErrorBuilder, self).__init__()
-        self.errors = None
-
-    def add(self, messages):
-        self.errors = merge_errors(self.errors, messages)
-
-    def raise_errors(self):
-        if self.errors:
-            raise ValidationError(self.errors)
 
 
 class Type(object):
@@ -57,7 +38,7 @@ class Type(object):
             try:
                 validator(data)
             except ValidationError as ve:
-                errors_builder.add(ve.messages)
+                errors_builder.add_errors(ve.messages)
         errors_builder.raise_errors()
         return data
 
@@ -157,7 +138,7 @@ class List(Type):
             try:
                 items.append(self.item_type.load(item))
             except ValidationError as ve:
-                errors_builder.add({idx: ve.messages})
+                errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
         return super(List, self).load(items)
@@ -175,7 +156,7 @@ class List(Type):
             try:
                 items.append(self.item_type.dump(item))
             except ValidationError as ve:
-                errors_builder.add({idx: ve.messages})
+                errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
         return super(List, self).dump(items)
@@ -206,7 +187,7 @@ class Tuple(Type):
             try:
                 result.add(item_type.load(item))
             except ValidationError as ve:
-                errors_builder.add({idx: ve.messages})
+                errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
         return super(Tuple, self).load(result)
@@ -227,7 +208,7 @@ class Tuple(Type):
             try:
                 result.add(item_type.dump(item))
             except ValidationError as ve:
-                errors_builder.add({idx: ve.messages})
+                errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
         return super(Tuple, self).dump(result)
@@ -280,7 +261,7 @@ class Dict(Type):
             try:
                 result[k] = value_type.load(v)
             except ValidationError as ve:
-                errors_builder.add({k: ve.messages})
+                errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
         return super(Dict, self).load(result)
@@ -301,7 +282,7 @@ class Dict(Type):
             try:
                 result[k] = value_type.dump(v)
             except ValidationError as ve:
-                errors_builder.add({k: ve.messages})
+                errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
         return super(Dict, self).dump(result)
@@ -401,12 +382,12 @@ class Object(Type):
                 if loaded != MISSING:
                     result[name] = loaded
             except ValidationError as ve:
-                errors_builder.add({name: ve.messages})
+                errors_builder.add_error(name, ve.messages)
 
         if not self.allow_extra_fields:
             for name in data:
                 if name not in self.fields:
-                    errors_builder.add({name: self._error_messages['unknown']})
+                    errors_builder.add_error(name, self._error_messages['unknown'])
 
         errors_builder.raise_errors()
 
@@ -424,7 +405,7 @@ class Object(Type):
                 if dumped != MISSING:
                     result[name] = dumped
             except ValidationError as ve:
-                errors_builder.add({k: ve.messages})
+                errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
         return super(Object, self).dump(result)
