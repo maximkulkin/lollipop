@@ -1,4 +1,5 @@
 from zephyr.utils import merge_errors, is_list, is_dict
+from zephyr.compat import string_types, int_types, iteritems
 
 
 MISSING = object()
@@ -88,7 +89,7 @@ class Integer(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not isinstance(data, int) and not isinstance(data, long):
+        if not isinstance(data, int_types):
             self._fail('invalid_type', expected='integer')
         return super(Integer, self).load(data)
 
@@ -96,7 +97,7 @@ class Integer(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not isinstance(value, int) and not isinstance(value, long):
+        if not isinstance(value, int_types):
             self._fail('invalid_type', expected='integer')
         return super(Integer, self).dump(value)
 
@@ -106,7 +107,7 @@ class String(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not isinstance(data, str) and not isinstance(data, unicode):
+        if not isinstance(data, string_types):
             self._fail('invalid_type', expected='string')
         return super(String, self).load(data)
 
@@ -114,7 +115,7 @@ class String(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not isinstance(value, str) and not isinstance(value, unicode):
+        if not isinstance(value, string_types):
             self._fail('invalid_type', expected='string')
         return super(String, self).dump(str(value))
 
@@ -272,7 +273,7 @@ class Dict(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for k, v in data.iteritems():
+        for k, v in iteritems(data):
             value_type = self.value_types.get(k)
             if value_type is None:
                 continue
@@ -293,7 +294,7 @@ class Dict(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for k, v in value.iteritems():
+        for k, v in iteritems(value):
             value_type = self.value_types.get(k)
             if value_type is None:
                 continue
@@ -380,7 +381,7 @@ class Object(Type):
         super(Object, self).__init__(**kwargs)
         self.fields = dict([
             (name, field if isinstance(field, Field) else default_field_type(field))
-            for name, field in fields.iteritems()
+            for name, field in iteritems(fields)
         ])
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
@@ -394,7 +395,7 @@ class Object(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for name, field in self.fields.iteritems():
+        for name, field in iteritems(self.fields):
             try:
                 loaded = field.load(name, data)
                 if loaded != MISSING:
@@ -417,7 +418,7 @@ class Object(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for name, field in self.fields.iteritems():
+        for name, field in iteritems(self.fields):
             try:
                 dumped = field.dump(name, obj)
                 if dumped != MISSING:

@@ -1,8 +1,7 @@
+from zephyr.compat import iteritems
+
+
 SCHEMA = '_schema'
-
-
-def iteritems(value):
-    return value.iteritems()
 
 
 def is_list(value):
