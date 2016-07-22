@@ -5,7 +5,7 @@ from zephyr.types import MISSING, ValidationError, Type, Any, String, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
     Optional, LoadOnly, DumpOnly
 from zephyr.errors import merge_errors
-from zephyr.validators import Predicate
+from zephyr.validators import Validator, Predicate
 from collections import namedtuple
 
 
@@ -28,28 +28,39 @@ def is_odd_validator():
     return validator(lambda x: x % 2 == 1, 'Value should be odd')
 
 
-class TestString:
-    def test_loading_string_value(self):
-        assert String().load('foo') == 'foo'
+class SpyValidator(Validator):
+    def __init__(self):
+        super(SpyValidator, self).__init__()
+        self.validated = None
+        self.context = None
+
+    def __call__(self, value, context=None):
+        self.validated = value
+        self.context = context
+
 
 class SpyType(Type):
     def __init__(self, load_result=None, dump_result=None):
         super(Type, self).__init__()
         self.loaded = None
         self.load_called = False
+        self.load_context = None
         self.load_result = load_result
         self.dumped = None
         self.dump_called = False
+        self.dump_context = None
         self.dump_result = dump_result
 
-    def load(self, data):
+    def load(self, data, context=None, *args, **kwargs):
         self.loaded = data
         self.load_called = True
+        self.load_context = context
         return self.load_result or data
 
-    def dump(self, value):
+    def dump(self, value, context=None, *args, **kwargs):
         self.dumped = value
         self.dump_called = True
+        self.dump_context = context
         return self.dump_result or value
 
 
@@ -104,6 +115,11 @@ class ValidationTestsMixin:
                 .load(self.valid_value)
         assert exc_info.value.messages == merge_errors(message1, message2)
 
+    def test_loading_passes_context_to_validator(self):
+        context = object()
+        validator = SpyValidator()
+        self.tested_type(validate=validator).load(self.valid_value, context)
+        assert validator.context == context
 
 
 class TestString(RequiredTestsMixin, ValidationTestsMixin):
@@ -248,6 +264,12 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
                  validate=[constant_fail_validator(message1)]).load([1, 2, 3])
         assert validate.called == 0
 
+    def test_loading_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        List(inner_type).load(['foo'], context)
+        assert inner_type.load_context == context
+
     def test_dumping_list_value(self):
         assert List(String()).dump(['foo', 'bar', 'baz']) == ['foo', 'bar', 'baz']
 
@@ -261,6 +283,12 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
             List(String()).dump([1, '2', 3])
         message = String.default_error_messages['invalid']
         assert exc_info.value.messages == {0: message, 2: message}
+
+    def test_dumping_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        List(inner_type).dump(['foo'], context)
+        assert inner_type.dump_context == context
 
 
 class TestDict(RequiredTestsMixin, ValidationTestsMixin):
@@ -302,6 +330,12 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
                  validate=[constant_fail_validator(message1)]).load([1, 2, 3])
         assert validate.called == 0
 
+    def test_loading_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        Dict(inner_type).load({'foo': 123}, context)
+        assert inner_type.load_context == context
+
     def test_dumping_dict_with_values_of_the_same_type(self):
         assert Dict(Integer()).dump({'foo': 123, 'bar': 456}) == \
             {'foo': 123, 'bar': 456}
@@ -322,6 +356,11 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
         message = Integer.default_error_messages['invalid']
         assert exc_info.value.messages == {'bar': message}
 
+    def test_dumping_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        Dict(inner_type).dump({'foo': 123}, context)
+        assert inner_type.dump_context == context
 
 class AttributeDummy:
     foo = 'hello'
@@ -343,6 +382,12 @@ class TestAttributeField:
         assert AttributeField(SpyType())\
             .load('foo', {'bar': 123, 'baz': 'goodbye'}) == MISSING
 
+    def test_loading_passes_context_to_field_type_load(self):
+        field_type = SpyType()
+        context = object()
+        AttributeField(field_type).load('foo', {'foo': 123}, context)
+        assert field_type.load_context == context
+
     def test_dumping_given_attribute_from_object(self):
         assert AttributeField(SpyType())\
             .dump('foo', AttributeDummy()) == AttributeDummy().foo
@@ -355,6 +400,12 @@ class TestAttributeField:
     def test_dumping_a_different_attribute_from_object(self):
         assert AttributeField(SpyType(), attribute='bar')\
             .dump('foo', AttributeDummy()) == AttributeDummy().bar
+
+    def test_dumping_passes_context_to_field_type_dump(self):
+        field_type = SpyType()
+        context = object()
+        AttributeField(field_type).dump('foo', AttributeDummy(), context)
+        assert field_type.dump_context == context
 
 
 class MethodDummy:
@@ -393,6 +444,12 @@ class TestMethodField:
         with pytest.raises(ValueError):
             MethodField(SpyType(), method='baz').dump('foo', MethodDummy())
 
+    def test_dumping_passes_context_to_field_type_dump(self):
+        field_type = SpyType()
+        context = object()
+        MethodField(field_type, 'foo').dump('foo', MethodDummy(), context)
+        assert field_type.dump_context == context
+
 
 class TestFunctionField:
     def test_loading_always_returns_missing(self):
@@ -408,6 +465,13 @@ class TestFunctionField:
         FunctionField(field_type, lambda name, obj: getattr(obj, name))\
             .dump('foo', AttributeDummy())
         assert field_type.dumped == AttributeDummy().foo
+
+    def test_dumping_passes_context_to_field_type_dump(self):
+        field_type = SpyType()
+        context = object()
+        FunctionField(field_type, lambda name, obj: getattr(obj, name))\
+            .dump('foo', AttributeDummy(), context)
+        assert field_type.dump_context == context
 
 
 class TestConstantField:
@@ -426,10 +490,10 @@ class TestConstantField:
 
 
 class AlwaysMissingType(Type):
-    def load(self, data):
+    def load(self, data, context=None):
         return MISSING
 
-    def dump(self, value):
+    def dump(self, value, context=None):
         return MISSING
 
 
@@ -438,19 +502,19 @@ class AlwaysInvalidType(Type):
         super(AlwaysInvalidType, self).__init__()
         self.error_message = error_message
 
-    def load(self, data):
+    def load(self, data, context=None):
         raise ValidationError(self.error_message)
 
-    def dump(self, value):
+    def dump(self, value, context=None):
         raise ValidationError(self.error_message)
 
 
 class SpyField(Field):
-    def load(self, name, data):
+    def load(self, name, data, context=None):
         self.loaded = (name, data)
         return data
 
-    def dump(self, name, obj):
+    def dump(self, name, obj, context=None):
         self.dumped = (name, obj)
         return obj
 
@@ -505,6 +569,15 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert foo_field.loaded == ('foo', data)
         assert bar_field.loaded == ('bar', data)
 
+    def test_loading_passes_context_to_inner_type_load(self):
+        foo_type = SpyType()
+        bar_type = SpyType()
+        context = object()
+        Object({'foo': foo_type, 'bar': bar_type})\
+            .load({'foo': 'hello', 'bar': 123}, context)
+        assert foo_type.load_context == context
+        assert bar_type.load_context == context
+
     def test_constructing_custom_objects_on_load(self):
         MyData = namedtuple('MyData', ['foo', 'bar'])
         assert Object({'foo': String(), 'bar': Integer()}, constructor=MyData)\
@@ -536,6 +609,15 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert foo_field.dumped == ('foo', obj)
         assert bar_field.dumped == ('bar', obj)
 
+    def test_dumping_passes_context_to_inner_type_dump(self):
+        foo_type = SpyType()
+        bar_type = SpyType()
+        context = object()
+        Object({'foo': foo_type, 'bar': bar_type})\
+            .dump(AttributeDummy(), context)
+        assert foo_type.dump_context == context
+        assert bar_type.dump_context == context
+
 
 class TestOptional:
     def test_loading_value_calls_load_of_inner_type(self):
@@ -558,6 +640,12 @@ class TestOptional:
         inner_type = SpyType()
         Optional(inner_type).load(MISSING)
         assert not inner_type.load_called
+
+    def test_loading_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        Optional(inner_type).load('foo', context)
+        assert inner_type.load_context == context
 
     def test_overriding_missing_value_on_load(self):
         assert Optional(Any(), load_default='foo').load(MISSING) == 'foo'
@@ -586,6 +674,12 @@ class TestOptional:
         Optional(inner_type).dump(None)
         assert not inner_type.dump_called
 
+    def test_dumping_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        Optional(inner_type).dump('foo', context)
+        assert inner_type.dump_context == context
+
     def test_overriding_missing_value_on_dump(self):
         assert Optional(Any(), dump_default='foo').dump(MISSING) == 'foo'
 
@@ -598,6 +692,12 @@ class TestLoadOnly:
         inner_type = SpyType(load_result='bar')
         assert LoadOnly(inner_type).load('foo') == 'bar'
         assert inner_type.load_called
+
+    def test_loading_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        LoadOnly(inner_type).load('foo', context)
+        assert inner_type.load_context == context
 
     def test_dumping_always_returns_missing(self):
         assert LoadOnly(Any()).dump('foo') == MISSING
@@ -621,3 +721,9 @@ class TestDumpOnly:
         inner_type = SpyType(dump_result='bar')
         assert DumpOnly(inner_type).dump('foo') == 'bar'
         assert inner_type.dump_called
+
+    def test_dumping_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        DumpOnly(inner_type).dump('foo', context)
+        assert inner_type.dump_context == context

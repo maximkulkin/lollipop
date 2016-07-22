@@ -1,6 +1,6 @@
 from zephyr.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from zephyr.utils import is_list, is_dict
+from zephyr.utils import is_list, is_dict, call_with_context
 from zephyr.compat import string_types, int_types, iteritems
 
 
@@ -57,37 +57,40 @@ class Type(ErrorMessagesMixin, object):
 
         self._validators = validate
 
-    def validate(self, data):
+    def validate(self, data, context=None):
         """Takes serialized data and returns validation errors or None.
 
         :param data: Data to validate.
+        :param context: Context data.
         """
         try:
-            self.load(data)
+            self.load(data, context)
             return {}
         except ValidationError as ve:
             return ve.messages
 
-    def load(self, data):
+    def load(self, data, context=None):
         """Deserialize data from primitive types. Raises
         :exc:`~zephyr.errors.ValidationError` if data is invalid.
 
         :param data: Data to deserialize.
+        :param context: Context data.
         """
         errors_builder = ValidationErrorBuilder()
         for validator in self._validators:
             try:
-                validator(data)
+                call_with_context(validator, context, data)
             except ValidationError as ve:
                 errors_builder.add_errors(ve.messages)
         errors_builder.raise_errors()
         return data
 
-    def dump(self, value):
+    def dump(self, value, context=None):
         """Serialize data to primitive types. Raises
         :exc:`~zephyr.errors.ValidationError` if data is invalid.
 
         :param value: Value to serialize.
+        :param context: Context data.
         """
         return value
 
@@ -112,17 +115,17 @@ class Number(Type):
         except (TypeError, ValueError):
             self._fail('invalid')
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
-        return super(Number, self).load(self._normalize(data))
+        return super(Number, self).load(self._normalize(data), *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
-        return super(Number, self).dump(self._normalize(value))
+        return super(Number, self).dump(self._normalize(value), *args, **kwargs)
 
 
 class Integer(Number):
@@ -150,21 +153,21 @@ class String(Type):
         'invalid': 'Value should be string',
     }
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
         if not isinstance(data, string_types):
             self._fail('invalid')
-        return super(String, self).load(data)
+        return super(String, self).load(data, *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
         if not isinstance(value, string_types):
             self._fail('invalid')
-        return super(String, self).dump(str(value))
+        return super(String, self).dump(str(value), *args, **kwargs)
 
 
 class Boolean(Type):
@@ -174,23 +177,23 @@ class Boolean(Type):
         'invalid': 'Value should be boolean',
     }
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
         if not isinstance(data, bool):
             self._fail('invalid')
 
-        return super(Boolean, self).load(data)
+        return super(Boolean, self).load(data, *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
         if not isinstance(value, bool):
             self._fail('invalid')
 
-        return super(Boolean, self).dump(bool(value))
+        return super(Boolean, self).dump(bool(value), *args, **kwargs)
 
 
 class List(Type):
@@ -211,7 +214,7 @@ class List(Type):
         super(List, self).__init__(**kwargs)
         self.item_type = item_type
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
@@ -223,14 +226,14 @@ class List(Type):
         items = []
         for idx, item in enumerate(data):
             try:
-                items.append(self.item_type.load(item))
+                items.append(self.item_type.load(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(List, self).load(items)
+        return super(List, self).load(items, *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
@@ -241,12 +244,12 @@ class List(Type):
         items = []
         for idx, item in enumerate(value):
             try:
-                items.append(self.item_type.dump(item))
+                items.append(self.item_type.dump(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(List, self).dump(items)
+        return super(List, self).dump(items, *args, **kwargs)
 
     def __repr__(self):
         return '<{klass} of {item_type}>'.format(
@@ -274,7 +277,7 @@ class Tuple(Type):
         super(Tuple, self).__init__(**kwargs)
         self.item_types = item_types
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
@@ -288,14 +291,14 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, data)):
             try:
-                result.add(item_type.load(item))
+                result.add(item_type.load(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(Tuple, self).load(result)
+        return super(Tuple, self).load(result, *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
@@ -309,12 +312,12 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, value)):
             try:
-                result.add(item_type.dump(item))
+                result.add(item_type.dump(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(Tuple, self).dump(result)
+        return super(Tuple, self).dump(result, *args, **kwargs)
 
     def __repr__(self):
         return '<{klass} of {item_types}>'.format(
@@ -375,7 +378,7 @@ class Dict(Type):
             value_types = DictWithDefault(default=value_types)
         self.value_types = value_types
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
@@ -389,14 +392,14 @@ class Dict(Type):
             if value_type is None:
                 continue
             try:
-                result[k] = value_type.load(v)
+                result[k] = value_type.load(v, *args, **kwargs)
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
-        return super(Dict, self).load(result)
+        return super(Dict, self).load(result, *args, **kwargs)
 
-    def dump(self, value):
+    def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
@@ -410,12 +413,12 @@ class Dict(Type):
             if value_type is None:
                 continue
             try:
-                result[k] = value_type.dump(v)
+                result[k] = value_type.dump(v, *args, **kwargs)
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
-        return super(Dict, self).dump(result)
+        return super(Dict, self).dump(result, *args, **kwargs)
 
     def __repr__(self):
         return '<{klass}>'.format(klass=self.__class__.__name__)
@@ -433,10 +436,10 @@ class Field(object):
         super(Field, self).__init__()
         self.field_type = field_type
 
-    def _get_value(self, name, obj):
+    def _get_value(self, name, obj, context=None):
         raise NotImplemented()
 
-    def load(self, name, data):
+    def load(self, name, data, *args, **kwargs):
         """Deserialize data from primitive types. Raises
         :exc:`~zephyr.errors.ValidationError` if data is invalid.
 
@@ -445,7 +448,7 @@ class Field(object):
         """
         return MISSING
 
-    def dump(self, name, obj):
+    def dump(self, name, obj, *args, **kwargs):
         """Serialize data to primitive types. Raises
         :exc:`~zephyr.errors.ValidationError` if data is invalid.
 
@@ -453,7 +456,7 @@ class Field(object):
         :param obj: Application object to extract serialized value from.
         """
         value = self._get_value(name, obj)
-        return self.field_type.dump(value)
+        return self.field_type.dump(value, *args, **kwargs)
 
 
 class ConstantField(Field):
@@ -465,7 +468,7 @@ class ConstantField(Field):
         super(ConstantField, self).__init__(field_type)
         self.value = value
 
-    def _get_value(self, name, obj):
+    def _get_value(self, name, obj, *args, **kwargs):
         return self.value
 
 
@@ -480,12 +483,12 @@ class AttributeField(Field):
         super(AttributeField, self).__init__(field_type)
         self.attribute = attribute
 
-    def _get_value(self, name, obj):
+    def _get_value(self, name, obj, *args, **kwargs):
         return getattr(obj, self.attribute or name, MISSING)
 
-    def load(self, name, data):
+    def load(self, name, data, *args, **kwargs):
         value = data.get(name, MISSING)
-        return self.field_type.load(value)
+        return self.field_type.load(value, *args, **kwargs)
 
 
 class MethodField(Field):
@@ -513,14 +516,14 @@ class MethodField(Field):
         super(MethodField, self).__init__(field_type)
         self.method = method
 
-    def _get_value(self, name, obj):
+    def _get_value(self, name, obj, context=None):
         if self.method:
             name = self.method
         if not hasattr(obj, name):
             raise ValueError('Object does not have method %s' % name)
         if not callable(getattr(obj, name)):
             raise ValueError('Value %s is not callable' % name)
-        return getattr(obj, name)()
+        return call_with_context(getattr(obj, name), context)
 
 
 class FunctionField(Field):
@@ -549,8 +552,8 @@ class FunctionField(Field):
         super(FunctionField, self).__init__(field_type)
         self.function = function
 
-    def _get_value(self, name, obj):
-        return self.function(name, obj)
+    def _get_value(self, name, obj, context=None):
+        return call_with_context(self.function, context, name, obj)
 
 
 class Object(Type):
@@ -607,7 +610,7 @@ class Object(Type):
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             self._fail('required')
 
@@ -618,7 +621,7 @@ class Object(Type):
         result = {}
         for name, field in iteritems(self.fields):
             try:
-                loaded = field.load(name, data)
+                loaded = field.load(name, data, *args, **kwargs)
                 if loaded != MISSING:
                     result[name] = loaded
             except ValidationError as ve:
@@ -631,9 +634,9 @@ class Object(Type):
 
         errors_builder.raise_errors()
 
-        return self.constructor(**super(Object, self).load(result))
+        return self.constructor(**super(Object, self).load(result, *args, **kwargs))
 
-    def dump(self, obj):
+    def dump(self, obj, *args, **kwargs):
         if obj is MISSING or obj is None:
             self._fail('required')
 
@@ -641,14 +644,14 @@ class Object(Type):
         result = {}
         for name, field in iteritems(self.fields):
             try:
-                dumped = field.dump(name, obj)
+                dumped = field.dump(name, obj, *args, **kwargs)
                 if dumped != MISSING:
                     result[name] = dumped
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
         errors_builder.raise_errors()
 
-        return super(Object, self).dump(result)
+        return super(Object, self).dump(result, *args, **kwargs)
 
 
 class Optional(Type):
@@ -680,15 +683,21 @@ class Optional(Type):
         self.load_default = load_default
         self.dump_default = dump_default
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             return self.load_default
-        return super(Optional, self).load(self.inner_type.load(data))
+        return super(Optional, self).load(
+            self.inner_type.load(data, *args, **kwargs),
+            *args, **kwargs
+        )
 
-    def dump(self, data):
+    def dump(self, data, *args, **kwargs):
         if data is MISSING or data is None:
             return self.dump_default
-        return super(Optional, self).dump(self.inner_type.dump(data))
+        return super(Optional, self).dump(
+            self.inner_type.dump(data, *args, **kwargs),
+            *args, **kwargs
+        )
 
     def __repr__(self):
         return '<{klass} {inner_type}>'.format(
@@ -714,10 +723,10 @@ class LoadOnly(Type):
         super(LoadOnly, self).__init__()
         self.inner_type = inner_type
 
-    def load(self, data):
-        return self.inner_type.load(data)
+    def load(self, data, *args, **kwargs):
+        return self.inner_type.load(data, *args, **kwargs)
 
-    def dump(self, data):
+    def dump(self, data, context=None):
         return MISSING
 
     def __repr__(self):
@@ -744,11 +753,11 @@ class DumpOnly(Type):
         super(DumpOnly, self).__init__()
         self.inner_type = inner_type
 
-    def load(self, data):
+    def load(self, data, *args, **kwargs):
         return MISSING
 
-    def dump(self, data):
-        return self.inner_type.dump(data)
+    def dump(self, data, *args, **kwargs):
+        return self.inner_type.dump(data, *args, **kwargs)
 
     def __repr__(self):
         return '<{klass} {inner_type}>'.format(
