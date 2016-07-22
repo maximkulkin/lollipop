@@ -10,7 +10,7 @@ MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not ex
 
 class Type(object):
     default_error_messages = {
-        'invalid_type': 'Value should be {expected}',
+        'invalid': 'Invalid value type',
         'required': 'Value is required',
     }
 
@@ -22,8 +22,10 @@ class Type(object):
             validate = [validate]
 
         self._validators = validate
-        self._error_messages = dict(self.default_error_messages,
-                                    **(error_messages or {}))
+        self._error_messages = {}
+        for cls in reversed(self.__class__.__mro__):
+            self._error_messages.update(getattr(cls, 'default_error_messages', {}))
+        self._error_messages.update(error_messages or {})
 
     def validate(self, data):
         try:
@@ -60,7 +62,6 @@ class Type(object):
         raise ValidationError(msg)
 
 
-
 class Any(Type):
     pass
 
@@ -71,7 +72,7 @@ class Integer(Type):
             self._fail('required')
 
         if not isinstance(data, int_types):
-            self._fail('invalid_type', expected='integer')
+            self._fail('invalid')
         return super(Integer, self).load(data)
 
     def dump(self, value):
@@ -79,17 +80,21 @@ class Integer(Type):
             self._fail('required')
 
         if not isinstance(value, int_types):
-            self._fail('invalid_type', expected='integer')
+            self._fail('invalid')
         return super(Integer, self).dump(value)
 
 
 class String(Type):
+    default_error_messages = {
+        'invalid': 'Value should be string',
+    }
+
     def load(self, data):
         if data is MISSING or data is None:
             self._fail('required')
 
         if not isinstance(data, string_types):
-            self._fail('invalid_type', expected='string')
+            self._fail('invalid')
         return super(String, self).load(data)
 
     def dump(self, value):
@@ -97,17 +102,22 @@ class String(Type):
             self._fail('required')
 
         if not isinstance(value, string_types):
-            self._fail('invalid_type', expected='string')
+            self._fail('invalid')
         return super(String, self).dump(str(value))
 
 
 class Boolean(Type):
+    default_error_messages = {
+        'invalid': 'Value should be boolean',
+    }
+
     def load(self, data):
         if data is MISSING or data is None:
             self._fail('required')
 
         if not isinstance(data, bool):
-            self._fail('invalid_type', expected='boolean')
+            self._fail('invalid')
+
         return super(Boolean, self).load(data)
 
     def dump(self, value):
@@ -115,11 +125,16 @@ class Boolean(Type):
             self._fail('required')
 
         if not isinstance(value, bool):
-            self._fail('invalid_type', expected='boolean')
+            self._fail('invalid')
+
         return super(Boolean, self).dump(bool(value))
 
 
 class List(Type):
+    default_error_messages = {
+        'invalid': 'Value should be list',
+    }
+
     def __init__(self, item_type, **kwargs):
         super(List, self).__init__(**kwargs)
         self.item_type = item_type
@@ -130,7 +145,7 @@ class List(Type):
 
         # TODO: Make more intelligent check for collections
         if not is_list(data):
-            self._fail('invalid_type', expected='list')
+            self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
         items = []
@@ -148,7 +163,7 @@ class List(Type):
             self._fail('required')
 
         if not is_list(value):
-            self._fail('invalid_type', expected='list')
+            self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
         items = []
@@ -164,6 +179,7 @@ class List(Type):
 
 class Tuple(Type):
     default_error_messages = dict(Type.default_error_messages, **{
+        'invalid': 'Value should be list',
         'invalid_length': 'Value length should be {expected_length}',
     })
 
@@ -176,7 +192,7 @@ class Tuple(Type):
             self._fail('required')
 
         if not is_list(data):
-            self._fail('invalid_type', expected='list')
+            self._fail('invalid')
 
         if len(data) != len(self.item_types):
             self._fail('invalid_length', expected_length=len(self.item_types))
@@ -197,7 +213,7 @@ class Tuple(Type):
             self._fail('required')
 
         if not is_list(data):
-            self._fail('invalid_type', expected='list')
+            self._fail('invalid')
 
         if len(value) != len(self.item_types):
             self._fail('invalid_length', expected_length=len(self.item_types))
@@ -239,6 +255,10 @@ class DictWithDefault(object):
 
 
 class Dict(Type):
+    default_error_messages = {
+        'invalid': 'Value should be dict',
+    }
+
     def __init__(self, value_type=Any(), **kwargs):
         super(Dict, self).__init__(**kwargs)
         if isinstance(value_type, Type):
@@ -250,7 +270,7 @@ class Dict(Type):
             self._fail('required')
 
         if not is_dict(data):
-            self._fail('invalid_type', expected='dict')
+            self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
         result = {}
@@ -271,7 +291,7 @@ class Dict(Type):
             self._fail('required')
 
         if not is_dict(value):
-            self._fail('invalid_type', expected='dict')
+            self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
         result = {}
@@ -351,9 +371,10 @@ class FunctionField(Field):
 
 
 class Object(Type):
-    default_error_messages = dict(Type.default_error_messages, **{
+    default_error_messages = {
+        'invalid': 'Value should be dict',
         'unknown': 'Unknown field',
-    })
+    }
 
     def __init__(self, fields, constructor=dict,
                  default_field_type=AttributeField,
@@ -372,7 +393,7 @@ class Object(Type):
             self._fail('required')
 
         if not is_dict(data):
-            self._fail('invalid_type', expected='dict')
+            self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
         result = {}

@@ -36,18 +36,17 @@ class TestString:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             String().load(MISSING)
-        assert exc_info.value.messages == String.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             String().load(None)
-        assert exc_info.value.messages == String.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_string_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             String().load(123)
-        assert exc_info.value.messages == \
-            String.default_error_messages['invalid_type'].format(expected='string')
+        assert exc_info.value.messages == String.default_error_messages['invalid']
 
     def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
         assert String(validate=[constant_succeed_validator(),
@@ -73,18 +72,17 @@ class TestString:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             String().dump(MISSING)
-        assert exc_info.value.messages == String.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             String().dump(None)
-        assert exc_info.value.messages == String.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_string_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             String().dump(123)
-        assert exc_info.value.messages == \
-            String.default_error_messages['invalid_type'].format(expected='string')
+        assert exc_info.value.messages == String.default_error_messages['invalid']
 
 
 class TestInteger:
@@ -98,18 +96,17 @@ class TestInteger:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().load(MISSING)
-        assert exc_info.value.messages == Integer.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().load(None)
-        assert exc_info.value.messages == Integer.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_integer_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().load("123")
-        assert exc_info.value.messages == \
-            Integer.default_error_messages['invalid_type'].format(expected='integer')
+        assert exc_info.value.messages == Integer.default_error_messages['invalid']
 
     def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
         assert Integer(validate=[constant_succeed_validator(),
@@ -139,18 +136,17 @@ class TestInteger:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().load(MISSING)
-        assert exc_info.value.messages == Integer.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().load(MISSING)
-        assert exc_info.value.messages == Integer.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_integer_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Integer().dump("123")
-        assert exc_info.value.messages == \
-            Integer.default_error_messages['invalid_type'].format(expected='integer')
+        assert exc_info.value.messages == Integer.default_error_messages['invalid']
 
 
 class TestBoolean:
@@ -161,18 +157,17 @@ class TestBoolean:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load(MISSING)
-        assert exc_info.value.messages == Boolean.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load(None)
-        assert exc_info.value.messages == Boolean.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load("123")
-        assert exc_info.value.messages == \
-            Boolean.default_error_messages['invalid_type'].format(expected='boolean')
+        assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
     def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
         assert Boolean(validate=[constant_succeed_validator(),
@@ -199,18 +194,17 @@ class TestBoolean:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load(MISSING)
-        assert exc_info.value.messages == Boolean.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load(MISSING)
-        assert exc_info.value.messages == Boolean.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().dump("123")
-        assert exc_info.value.messages == \
-            Boolean.default_error_messages['invalid_type'].format(expected='boolean')
+        assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
 
 class TestList:
@@ -220,23 +214,22 @@ class TestList:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).load(MISSING)
-        assert exc_info.value.messages == List.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).load(None)
-        assert exc_info.value.messages == List.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).load('1, 2, 3')
-        assert exc_info.value.messages == \
-            List.default_error_messages['invalid_type'].format(expected='list')
+        assert exc_info.value.messages == List.default_error_messages['invalid']
 
     def test_loading_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).load([1, '2', 3])
-        message = List.default_error_messages['invalid_type'].format(expected='string')
+        message = String.default_error_messages['invalid']
         assert exc_info.value.messages == {0: message, 2: message}
 
     def test_loading_list_value_with_items_that_have_validation_errors_raises_ValidationError(self):
@@ -281,23 +274,22 @@ class TestList:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump(MISSING)
-        assert exc_info.value.messages == List.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump(None)
-        assert exc_info.value.messages == List.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump('1, 2, 3')
-        assert exc_info.value.messages == \
-            List.default_error_messages['invalid_type'].format(expected='list')
+        assert exc_info.value.messages == List.default_error_messages['invalid']
 
     def test_dumping_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump([1, '2', 3])
-        message = List.default_error_messages['invalid_type'].format(expected='string')
+        message = String.default_error_messages['invalid']
         assert exc_info.value.messages == {0: message, 2: message}
 
 
@@ -314,23 +306,22 @@ class TestDict:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).load(MISSING)
-        assert exc_info.value.messages == Dict.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).load(None)
-        assert exc_info.value.messages == Dict.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).load(['1', '2'])
-        assert exc_info.value.messages == \
-            Dict.default_error_messages['invalid_type'].format(expected='dict')
+        assert exc_info.value.messages == Dict.default_error_messages['invalid']
 
     def test_loading_dict_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).load({'foo': 1, 'bar': '2'})
-        message = Dict.default_error_messages['invalid_type'].format(expected='integer')
+        message = Integer.default_error_messages['invalid']
         assert exc_info.value.messages == {'bar': message}
 
     def test_loading_dict_with_items_that_have_validation_errors_raises_ValidationError(self):
@@ -381,23 +372,22 @@ class TestDict:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).dump(MISSING)
-        assert exc_info.value.messages == Dict.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(String()).dump(None)
-        assert exc_info.value.messages == Dict.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(()).dump('1, 2, 3')
-        assert exc_info.value.messages == \
-            Dict.default_error_messages['invalid_type'].format(expected='dict')
+        assert exc_info.value.messages == Dict.default_error_messages['invalid']
 
     def test_dumping_dict_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).dump({'foo': 1, 'bar': '2'})
-        message = Dict.default_error_messages['invalid_type'].format(expected='integer')
+        message = Integer.default_error_messages['invalid']
         assert exc_info.value.messages == {'bar': message}
 
 
@@ -551,18 +541,17 @@ class TestObject:
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Object({'foo': String(), 'bar': Integer()}).load(MISSING)
-        assert exc_info.value.messages == Object.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Object({'foo': String(), 'bar': Integer()}).load(None)
-        assert exc_info.value.messages == Object.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_dict_values_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Object({'foo': String(), 'bar': Integer()}).load(['hello', 123])
-        assert exc_info.value.messages == \
-            Object.default_error_messages['invalid_type'].format(expected='dict')
+        assert exc_info.value.messages == Object.default_error_messages['invalid']
 
     def test_loading_bypasses_values_for_which_field_type_returns_missing_value(self):
         assert Object({'foo': AlwaysMissingType(), 'bar': Integer()})\
@@ -650,12 +639,12 @@ class TestObject:
     def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Object({'foo': String(), 'bar': Integer()}).dump(MISSING)
-        assert exc_info.value.messages == Object.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             Object({'foo': String(), 'bar': Integer()}).dump(None)
-        assert exc_info.value.messages == Object.default_error_messages['required']
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_calls_field_dump_passing_field_name_and_whole_object(self):
         foo_field = SpyField(String())
