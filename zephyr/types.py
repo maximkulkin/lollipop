@@ -1,4 +1,4 @@
-from zephyr.utils import merge_errors
+from zephyr.utils import merge_errors, is_list, is_dict
 
 
 MISSING = object()
@@ -124,7 +124,7 @@ class List(Type):
 
     def load(self, data):
         # TODO: Make more intelligent check for collections
-        if not isinstance(data, list):
+        if not is_list(data):
             self._fail('invalid_type', expected='list')
 
         errors_builder = ValidationErrorBuilder()
@@ -139,7 +139,7 @@ class List(Type):
         return super(List, self).load(items)
 
     def dump(self, items):
-        if not isinstance(data, list):
+        if not is_list(value):
             self._fail('invalid_type', expected='list')
 
         errors_builder = ValidationErrorBuilder()
@@ -160,7 +160,7 @@ class Tuple(Type):
         self.item_types = item_types
 
     def load(self, data):
-        if not isinstance(data, list):
+        if not is_list(data):
             self._fail('invalid_type', expected='list')
 
         if len(data) != len(self.item_types):
@@ -178,7 +178,7 @@ class Tuple(Type):
         return super(Tuple, self).load(result)
 
     def dump(self, value):
-        if not isinstance(value, list):
+        if not is_list(data):
             self._fail('invalid_type', expected='list')
 
         if len(value) != len(self.item_types):
@@ -202,7 +202,7 @@ class Dict(Type):
         self.value_type = value_type
 
     def load(self, data):
-        if not isinstance(data, dict):
+        if not is_dict(data):
             self._fail('invalid_type', expected='dict')
 
         result = {}
@@ -218,7 +218,7 @@ class Dict(Type):
         return super(Object, self).load(result)
 
     def dump(self, value):
-        if not isinstance(value, dict):
+        if not is_dict(value):
             self._fail('invalid_type', expected='dict')
 
         result = {}
@@ -282,8 +282,8 @@ class Object(Type):
             self.fields[name] = field if isinstance(field, Field) else Field(field)
 
     def load(self, data):
-        if not isinstance(data, dict):
-            raise ValidationError('Value should be dict')
+        if not is_dict(data):
+            self._fail('invalid_type', expected='dict')
 
         errors_builder = ValidationErrorBuilder()
         result = {}

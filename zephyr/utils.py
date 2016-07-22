@@ -5,6 +5,16 @@ def iteritems(value):
     return value.iteritems()
 
 
+def is_list(value):
+    """Returns True if value supports list interface; False - otherwise"""
+    return isinstance(value, list)
+
+
+def is_dict(value):
+    """Returns True if value supports dict interface; False - otherwise"""
+    return isinstance(value, dict)
+
+
 def merge_errors(errors1, errors2):
     """Deeply merges two error messages. Error messages can be
     string, list of strings or dict of error messages (recursively).
