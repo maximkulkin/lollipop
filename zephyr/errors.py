@@ -3,6 +3,8 @@ from zephyr.compat import iteritems
 
 SCHEMA = '_schema'
 
+MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not exist'
+
 
 class ValidationError(Exception):
     def __init__(self, messages):
@@ -22,6 +24,29 @@ class ValidationErrorBuilder(object):
     def raise_errors(self):
         if self.errors:
             raise ValidationError(self.errors)
+
+
+class ErrorMessagesMixin(object):
+    def __init__(self, error_messages=None, *args, **kwargs):
+        super(ErrorMessagesMixin, self).__init__(*args, **kwargs)
+        self._error_messages = {}
+        for cls in reversed(self.__class__.__mro__):
+            self._error_messages.update(getattr(cls, 'default_error_messages', {}))
+        self._error_messages.update(error_messages or {})
+
+    def _fail(self, key, **kwargs):
+        if key not in self._error_messages:
+            msg = MISSING_ERROR_MESSAGE.format(
+                class_name=self.__class__.__name__,
+                key=key
+            )
+            raise ValueError(msg)
+
+        msg = self._error_messages[key]
+        if isinstance(msg, str):
+            msg = msg.format(**kwargs)
+
+        raise ValidationError(msg)
 
 
 def merge_errors(errors1, errors2):

@@ -1,31 +1,26 @@
-from zephyr.errors import ValidationError, ValidationErrorBuilder, merge_errors
+from zephyr.errors import ValidationError, ValidationErrorBuilder, \
+    ErrorMessagesMixin, merge_errors
 from zephyr.utils import is_list, is_dict
 from zephyr.compat import string_types, int_types, iteritems
 
 
 MISSING = object()
 
-MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not exist'
 
-
-class Type(object):
+class Type(ErrorMessagesMixin, object):
     default_error_messages = {
         'invalid': 'Invalid value type',
         'required': 'Value is required',
     }
 
-    def __init__(self, validate=None, error_messages=None):
-        super(Type, self).__init__()
+    def __init__(self, validate=None, *args, **kwargs):
+        super(Type, self).__init__(*args, **kwargs)
         if validate is None:
             validate = []
         elif callable(validate):
             validate = [validate]
 
         self._validators = validate
-        self._error_messages = {}
-        for cls in reversed(self.__class__.__mro__):
-            self._error_messages.update(getattr(cls, 'default_error_messages', {}))
-        self._error_messages.update(error_messages or {})
 
     def validate(self, data):
         try:
@@ -46,20 +41,6 @@ class Type(object):
 
     def dump(self, value):
         return value
-
-    def _fail(self, key, **kwargs):
-        if key not in self._error_messages:
-            msg = MISSING_ERROR_MESSAGE.format(
-                class_name=self.__class__.__name__,
-                key=key
-            )
-            raise ValueError(msg)
-
-        msg = self._error_messages[key]
-        if isinstance(msg, str):
-            msg = msg.format(**kwargs)
-
-        raise ValidationError(msg)
 
 
 class Any(Type):
