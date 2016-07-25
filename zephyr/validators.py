@@ -4,10 +4,19 @@ import re
 
 
 class Validator(ErrorMessagesMixin, object):
+    """Base class for all validators."""
+
     pass
 
 
 class Predicate(Validator):
+    """Validator that succeeds if given predicate returns True.
+
+    :param callable predicate: Predicate that takes value and returns True or False.
+    :param str error: Error message in case of validation error.
+        Can be interpolated with ``data``.
+    """
+
     default_error_messages = {
         'invalid': 'Invalid data',
     }
@@ -31,6 +40,14 @@ class Predicate(Validator):
 
 
 class Range(Validator):
+    """Validator that checks value is in given range.
+
+    :param int min: Minimum length. If not provided, minimum won't be checked.
+    :param int max: Maximum length. If not provided, maximum won't be checked.
+    :param str error: Error message in case of validation error.
+        Can be interpolated with ``data``, ``min`` or ``max``.
+    """
+
     default_error_messages = {
         'min': 'Value should be at least {min}',
         'max': 'Value should be at most {max}',
