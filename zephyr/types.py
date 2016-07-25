@@ -47,22 +47,47 @@ class Any(Type):
     pass
 
 
-class Integer(Type):
+class Number(Type):
+    num_type = float
+    default_error_messages = {
+        'invalid': 'Value should be number',
+    }
+
+    def _normalize(self, value):
+        try:
+            return self.num_type(value)
+        except (TypeError, ValueError):
+            self._fail('invalid')
+
     def load(self, data):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not isinstance(data, int_types):
-            self._fail('invalid')
-        return super(Integer, self).load(data)
+        return super(Number, self).load(self._normalize(data))
 
     def dump(self, value):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not isinstance(value, int_types):
-            self._fail('invalid')
-        return super(Integer, self).dump(value)
+        return super(Number, self).dump(self._normalize(value))
+
+
+class Integer(Number):
+    """An integer type."""
+
+    num_type = int
+    default_error_messages = {
+        'invalid': 'Value should be integer'
+    }
+
+
+class Float(Number):
+    """A float type."""
+
+    num_type = float
+    default_error_messages = {
+        'invalid': 'Value should be float'
+    }
 
 
 class String(Type):
