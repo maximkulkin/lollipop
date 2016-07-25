@@ -8,14 +8,20 @@ class Validator(ErrorMessagesMixin, object):
 
 
 class Predicate(Validator):
-    def __init__(self, predicate, error='Invalid data'):
-        super(Predicate, self).__init__()
+    default_error_messages = {
+        'invalid': 'Invalid data',
+    }
+
+    def __init__(self, predicate, error=None, **kwargs):
+        super(Predicate, self).__init__(**kwargs)
         self.predicate = predicate
+        if error is not None:
+            self._error_messages['invalid'] = error
         self.error = error
 
     def __call__(self, value):
         if not self.predicate(value):
-            raise ValidationError(self.error)
+            self._fail('invalid', data=value)
 
     def __repr__(self):
         return '<{klass} predicate={predicate} error={error}>'.format(
