@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/maximkulkin/zephyr.svg)](https://travis-ci.org/maximkulkin/zephyr)
 
+[![Documentation Status](https://readthedocs.org/projects/zephyr/badge/?version=latest)](http://zephyr.readthedocs.io/en/latest/?badge=latest)
+
 Data serialization and validation library
 
 Example
