@@ -501,7 +501,7 @@ class TestMethodField:
 
     def test_dumping_raises_ValueError_if_given_method_does_not_exist(self):
         with pytest.raises(ValueError):
-            MethodField(SpyType()).dump('bam', MethodDummy())
+            MethodField(SpyType(), method='unknown').dump('bam', MethodDummy())
 
     def test_dumping_raises_ValueError_if_given_method_is_not_callable(self):
         with pytest.raises(ValueError):

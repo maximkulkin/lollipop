@@ -1,29 +1,42 @@
 from zephyr.compat import iteritems
 
 
+__all__ = [
+    'SCHEMA',
+    'ValidationError',
+    'ValidationErrorBuilder',
+    'merge_errors',
+]
+
+
+#: Name of an error key for cases when you have both errors for the object and
+#: for it's fields::
+#:
+#:     {'field1': 'Field error', '_schema': 'Whole object error'}
 SCHEMA = '_schema'
 
 MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not exist'
 
 
 class ValidationError(Exception):
+    """Exception to report validation errors.
+
+    Examples of valid error messages: ::
+
+        raise ValidationError('Error')
+        raise ValidationError(['Error 1', 'Error 2'])
+        raise ValidationError({
+            'field1': 'Error 1',
+            'field2': {'subfield1': ['Error 2', 'Error 3']}
+        })
+
+    :param messages: Validation error messages. String, list of strings or dict
+        where keys are nested fields and values are error messages.
+    """
     def __init__(self, messages):
         super(ValidationError, self).__init__('Invalid data')
         # TODO: normalize messages
         self.messages = messages
-
-
-class ValidationErrorBuilder(object):
-    def __init__(self):
-        super(ValidationErrorBuilder, self).__init__()
-        self.errors = None
-
-    def add(self, messages):
-        self.errors = merge_errors(self.errors, messages)
-
-    def raise_errors(self):
-        if self.errors:
-            raise ValidationError(self.errors)
 
 
 class ErrorMessagesMixin(object):
@@ -107,7 +120,7 @@ def merge_errors(errors1, errors2):
 class ValidationErrorBuilder(object):
     """Helper class to report multiple errors.
 
-    Example:
+    Example: ::
 
         def validate_all(data):
             builder = ValidationErrorBuilder()
@@ -133,7 +146,7 @@ class ValidationErrorBuilder(object):
     def add_error(self, path, error):
         """Add error message for given field path.
 
-        Example:
+        Example: ::
 
             builder = ValidationErrorBuilder()
             builder.add_error('foo.bar.baz', 'Some error')
@@ -148,7 +161,7 @@ class ValidationErrorBuilder(object):
     def add_errors(self, errors):
         """Add errors in dict format.
 
-        Example:
+        Example: ::
 
             builder = ValidationErrorBuilder()
             builder.add_errors({'foo': {'bar': 'Error 1'}})
@@ -161,6 +174,8 @@ class ValidationErrorBuilder(object):
         self.errors = merge_errors(self.errors, errors)
 
     def raise_errors(self):
-        """Raise ValidationError if errors are not empty; do nothing otherwise."""
+        """Raise :exc:`ValidationError` if errors are not empty;
+        do nothing otherwise.
+        """
         if self.errors:
             raise ValidationError(self.errors)
