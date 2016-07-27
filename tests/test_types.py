@@ -1,4 +1,5 @@
 import pytest
+from functools import partial
 from zephyr.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
@@ -34,51 +35,73 @@ class TestString:
     def test_loading_string_value(self):
         assert String().load('foo') == 'foo'
 
+class RequiredTestsMixin:
+    """Mixin that adds tests for reacting to missing/None values during load/dump.
+    Host class should define `tested_type` properties.
+    """
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
-            String().load(MISSING)
+            self.tested_type().load(MISSING)
         assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_None_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
-            String().load(None)
+            self.tested_type().load(None)
         assert exc_info.value.messages == Type.default_error_messages['required']
 
-    def test_loading_non_string_value_raises_ValidationError(self):
+    def test_dumping_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
-            String().load(123)
-        assert exc_info.value.messages == String.default_error_messages['invalid']
+            self.tested_type().dump(MISSING)
+        assert exc_info.value.messages == Type.default_error_messages['required']
 
+    def test_dumping_None_raises_required_error(self):
+        with pytest.raises(ValidationError) as exc_info:
+            self.tested_type().dump(None)
+        assert exc_info.value.messages == Type.default_error_messages['required']
+
+
+class ValidationTestsMixin:
+    """Mixin that adds tests for reacting to validators.
+    Host class should define `tested_type` and `valid_value` properties.
+    """
     def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert String(validate=[constant_succeed_validator(),
-                                constant_succeed_validator()]).load('foo') == 'foo'
+        assert self.tested_type(
+            validate=[constant_succeed_validator(),
+                      constant_succeed_validator()],
+        ).load(self.valid_value) == self.valid_value
 
     def test_loading_raises_ValidationError_if_validator_fails(self):
         message1 = 'Something went wrong'
         with pytest.raises(ValidationError) as exc_info:
-            String(validate=constant_fail_validator(message1)).load('foo')
+            self.tested_type(validate=constant_fail_validator(message1))\
+                .load(self.valid_value)
         assert exc_info.value.messages == message1
 
     def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
         message1 = 'Something went wrong 1'
         message2 = 'Something went wrong 2'
         with pytest.raises(ValidationError) as exc_info:
-            String(validate=[constant_fail_validator(message1),
-                             constant_fail_validator(message2)]).load('foo')
+            self.tested_type(validate=[constant_fail_validator(message1),
+                                       constant_fail_validator(message2)])\
+                .load(self.valid_value)
         assert exc_info.value.messages == merge_errors(message1, message2)
+
+
+
+class TestString(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = String
+    valid_value = 'foo'
+
+    def test_loading_string_value(self):
+        assert String().load('foo') == 'foo'
+
+    def test_loading_non_string_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            String().load(123)
+        assert exc_info.value.messages == String.default_error_messages['invalid']
 
     def test_dumping_string_value(self):
         assert String().dump('foo') == 'foo'
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            String().dump(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            String().dump(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_string_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -86,55 +109,20 @@ class TestString:
         assert exc_info.value.messages == String.default_error_messages['invalid']
 
 
-class TestNumber:
+class TestNumber(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = Number
+    valid_value = 1.23
+
     def test_loading_float_value(self):
         assert Number().load(1.23) == 1.23
-
-    def test_loading_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Number().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_loading_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Number().load(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_numeric_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Number().load("abc")
         assert exc_info.value.messages == Number.default_error_messages['invalid']
 
-    def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert Number(validate=[constant_succeed_validator(),
-                                 constant_succeed_validator()]).load(1.23) == 1.23
-
-    def test_loading_raises_ValidationError_if_validator_fails(self):
-        message1 = 'Something went wrong'
-        with pytest.raises(ValidationError) as exc_info:
-            Number(validate=constant_fail_validator(message1)).load(1.23)
-        assert exc_info.value.messages == message1
-
-    def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
-        message1 = 'Something went wrong 1'
-        message2 = 'Something went wrong 2'
-        with pytest.raises(ValidationError) as exc_info:
-            Number(validate=[constant_fail_validator(message1),
-                              constant_fail_validator(message2)]).load(1.23)
-        assert exc_info.value.messages == merge_errors(message1, message2)
-
     def test_dumping_float_value(self):
         assert Number().dump(1.23) == 1.23
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Number().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Number().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_numeric_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -186,57 +174,22 @@ class TestFloat:
         assert exc_info.value.messages == Float.default_error_messages['invalid']
 
 
-class TestBoolean:
+class TestBoolean(ValidationTestsMixin):
+    tested_type = Boolean
+    valid_value = True
+
     def test_loading_boolean_value(self):
         assert Boolean().load(True) == True
         assert Boolean().load(False) == False
-
-    def test_loading_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_loading_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean().load(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Boolean().load("123")
         assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
-    def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert Boolean(validate=[constant_succeed_validator(),
-                                 constant_succeed_validator()]).load(True) == True
-
-    def test_loading_raises_ValidationError_if_validator_fails(self):
-        message1 = 'Something went wrong'
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean(validate=constant_fail_validator(message1)).load(True)
-        assert exc_info.value.messages == message1
-
-    def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
-        message1 = 'Something went wrong 1'
-        message2 = 'Something went wrong 2'
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean(validate=[constant_fail_validator(message1),
-                              constant_fail_validator(message2)]).load(True)
-        assert exc_info.value.messages == merge_errors(message1, message2)
-
     def test_dumping_boolean_value(self):
         assert Boolean().dump(True) == True
         assert Boolean().dump(False) == False
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Boolean().load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -244,19 +197,12 @@ class TestBoolean:
         assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
 
-class TestList:
+class TestList(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = partial(List, String())
+    valid_value = ['foo', 'bar']
+
     def test_loading_list_value(self):
         assert List(String()).load(['foo', 'bar', 'baz']) == ['foo', 'bar', 'baz']
-
-    def test_loading_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            List(String()).load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_loading_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            List(String()).load(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -274,27 +220,6 @@ class TestList:
             List(Integer(validate=is_odd_validator())).load([1, 2, 3])
         assert exc_info.value.messages == {1: 'Value should be odd'}
 
-    def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert List(String(), validate=[constant_succeed_validator(),
-                                        constant_succeed_validator()])\
-            .load(['1', '2', '3']) == ['1', '2', '3']
-
-    def test_loading_raises_ValidationError_if_validator_fails(self):
-        message = 'Something went wrong'
-        with pytest.raises(ValidationError) as exc_info:
-            List(String(), validate=constant_fail_validator(message))\
-                .load(['foo', 'bar'])
-        assert exc_info.value.messages == message
-
-    def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
-        message1 = 'Something went wrong 1'
-        message2 = 'Something went wrong 2'
-        with pytest.raises(ValidationError) as exc_info:
-            List(String(), validate=[constant_fail_validator(message1),
-                                     constant_fail_validator(message2)])\
-                .load(['foo', 'bar'])
-        assert exc_info.value.messages == merge_errors(message1, message2)
-
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
         def validate(value):
@@ -308,16 +233,6 @@ class TestList:
     def test_dumping_list_value(self):
         assert List(String()).dump(['foo', 'bar', 'baz']) == ['foo', 'bar', 'baz']
 
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            List(String()).dump(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            List(String()).dump(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
     def test_dumping_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump('1, 2, 3')
@@ -330,7 +245,10 @@ class TestList:
         assert exc_info.value.messages == {0: message, 2: message}
 
 
-class TestDict:
+class TestDict(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = partial(Dict, Integer())
+    valid_value = {'foo': 123, 'bar': 456}
+
     def test_loading_dict_with_values_of_the_same_type(self):
         assert Dict(Integer()).load({'foo': 123, 'bar': 456}) == \
             {'foo': 123, 'bar': 456}
@@ -339,16 +257,6 @@ class TestDict:
         value = {'foo': 1, 'bar': 'hello', 'baz': True}
         assert Dict({'foo': Integer(), 'bar': String(), 'baz': Boolean()})\
             .load(value) == value
-
-    def test_loading_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(Integer()).load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_loading_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(Integer()).load(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -365,27 +273,6 @@ class TestDict:
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer(validate=is_odd_validator())).load({'foo': 1, 'bar': 2})
         assert exc_info.value.messages == {'bar': 'Value should be odd'}
-
-    def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert Dict(Integer(), validate=[constant_succeed_validator(),
-                                         constant_succeed_validator()])\
-            .load({'foo': 1, 'bar': 2}) == {'foo': 1, 'bar': 2}
-
-    def test_loading_raises_ValidationError_if_validator_fails(self):
-        message = 'Something went wrong'
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(Integer(), validate=constant_fail_validator(message))\
-                .load({'foo': 1, 'bar': 2})
-        assert exc_info.value.messages == message
-
-    def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
-        message1 = 'Something went wrong 1'
-        message2 = 'Something went wrong 2'
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(Integer(), validate=[constant_fail_validator(message1),
-                                      constant_fail_validator(message2)])\
-                .load({'foo': 1, 'bar': 2})
-        assert exc_info.value.messages == merge_errors(message1, message2)
 
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
@@ -405,16 +292,6 @@ class TestDict:
         value = {'foo': 1, 'bar': 'hello', 'baz': True}
         assert Dict({'foo': Integer(), 'bar': String(), 'baz': Boolean()})\
             .load(value) == value
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(Integer()).dump(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Dict(String()).dump(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -579,20 +456,13 @@ class SpyField(Field):
         return obj
 
 
-class TestObject:
+class TestObject(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = partial(Object, {'foo': String(), 'bar': Integer()})
+    valid_value = {'foo': 'hello', 'bar': 123}
+
     def test_loading_dict_value(self):
         assert Object({'foo': String(), 'bar': Integer()})\
             .load({'foo': 'hello', 'bar': 123}) == {'foo': 'hello', 'bar': 123}
-
-    def test_loading_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()}).load(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_loading_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()}).load(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_loading_non_dict_values_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -628,30 +498,6 @@ class TestObject:
 
         assert validate.called == 0
 
-    def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
-        assert Object({'foo': String(), 'bar': Integer()},
-                      validate=[constant_succeed_validator(),
-                                constant_succeed_validator()])\
-            .load({'foo': 'hello', 'bar': 2}) == {'foo': 'hello', 'bar': 2}
-
-    def test_loading_raises_ValidationError_if_validator_fails(self):
-        message = 'Something went wrong'
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()},
-                   validate=constant_fail_validator(message))\
-                .load({'foo': 'hello', 'bar': 2})
-        assert exc_info.value.messages == message
-
-    def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
-        message1 = 'Something went wrong 1'
-        message2 = 'Something went wrong 2'
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()},
-                   validate=[constant_fail_validator(message1),
-                             constant_fail_validator(message2)])\
-                .load({'foo': 'hello', 'bar': 2})
-        assert exc_info.value.messages == merge_errors(message1, message2)
-
     def test_loading_calls_field_load_passing_field_name_and_whole_data(self):
         foo_field = SpyField(String())
         bar_field = SpyField(Integer())
@@ -681,16 +527,6 @@ class TestObject:
         MyData = namedtuple('MyData', ['foo', 'bar'])
         assert Object({'foo': String(), 'bar': Integer()})\
             .dump(MyData('hello', 123)) == {'foo': 'hello', 'bar': 123}
-
-    def test_dumping_missing_value_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()}).dump(MISSING)
-        assert exc_info.value.messages == Type.default_error_messages['required']
-
-    def test_dumping_None_raises_required_error(self):
-        with pytest.raises(ValidationError) as exc_info:
-            Object({'foo': String(), 'bar': Integer()}).dump(None)
-        assert exc_info.value.messages == Type.default_error_messages['required']
 
     def test_dumping_calls_field_dump_passing_field_name_and_whole_object(self):
         foo_field = SpyField(String())
