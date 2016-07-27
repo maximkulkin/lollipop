@@ -201,6 +201,7 @@ class List(Type):
         List(String()).load(['foo', 'bar', 'baz'])
 
     :param Type item_type: Type of list elements.
+    :param kwargs: Same keyword arguments as for :class:`Type`.
     """
     default_error_messages = {
         'invalid': 'Value should be list',
@@ -262,6 +263,7 @@ class Tuple(Type):
         Tuple([String(), Integer(), Boolean()]).load(['foo', 123, False])
 
     :param list item_types: List of item types.
+    :param kwargs: Same keyword arguments as for :class:`Type`.
     """
     default_error_messages = dict(Type.default_error_messages, **{
         'invalid': 'Value should be list',
@@ -360,6 +362,7 @@ class Dict(Type):
 
     :param dict value_type: A single :class:`Type` for all dict values or mapping
         of allowed keys to :class:`Type` instances.
+    :param kwargs: Same keyword arguments as for :class:`Type`.
     """
 
     default_error_messages = {
@@ -584,6 +587,7 @@ class Object(Type):
     :param bool allow_extra_fields: If False, it will raise
         :exc:`~zephyr.errors.ValidationError` for all extra dict keys during
         deserialization. If True, will ignore all extra fields.
+    :param kwargs: Same keyword arguments as for :class:`Type`.
     """
 
     default_error_messages = {
