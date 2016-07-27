@@ -1,18 +1,34 @@
 from zephyr.errors import ValidationError, ErrorMessagesMixin
 from zephyr.compat import string_types
+from zephyr.utils import call_with_context
 import re
 
 
 class Validator(ErrorMessagesMixin, object):
-    """Base class for all validators."""
+    """Base class for all validators.
 
-    pass
+    Validator is used by types to validate data during deserialization. Validator
+    class should define `__call__` method with either one or two arguments. In both
+    cases, first argument is value being validated. In case of two arguments, the
+    second one is the context. If given value fails validation, `__call__` method
+    should raise :exc:`~zephyr.errors.ValidationError`. Return value is always
+    ignored.
+    """
+
+    def __call__(self, value, context=None):
+        """Validate value. In case of errors, raise
+        :exc:`~zephyr.errors.ValidationError`. Return value is always ignored.
+        """
+        raise NotImplemented()
 
 
 class Predicate(Validator):
     """Validator that succeeds if given predicate returns True.
 
     :param callable predicate: Predicate that takes value and returns True or False.
+        One- and two-argument predicates are supported. First argument in both cases
+        is value being validated. In case of two arguments, the second one is
+        context.
     :param str error: Error message in case of validation error.
         Can be interpolated with ``data``.
     """
@@ -28,8 +44,8 @@ class Predicate(Validator):
             self._error_messages['invalid'] = error
         self.error = error
 
-    def __call__(self, value):
-        if not self.predicate(value):
+    def __call__(self, value, context=None):
+        if not call_with_context(self.predicate, context, value):
             self._fail('invalid', data=value)
 
     def __repr__(self):

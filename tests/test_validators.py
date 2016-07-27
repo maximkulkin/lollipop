@@ -24,16 +24,33 @@ def not_raises(exception_type):
 class TestPredicate:
     def test_matching_values(self):
         with not_raises(ValidationError):
-            Predicate(lambda x: x in ['foo', 'bar', 'baz'], 'Invalid')('foo')
+            Predicate(lambda x: x in ['foo', 'bar', 'baz'])('foo')
 
         with not_raises(ValidationError):
-            Predicate(lambda x: x in ['foo', 'bar', 'baz'], 'Invalid')('bar')
+            Predicate(lambda x: x in ['foo', 'bar', 'baz'])('bar')
 
     def test_raising_ValidationError_if_predicate_returns_False(self):
+        with raises(ValidationError) as exc_info:
+            Predicate(lambda x: x in ['foo', 'bar'])('baz')
+        assert exc_info.value.messages == Predicate.default_error_messages['invalid']
+
+    def test_customizing_validation_error(self):
         message = 'Invalid data'
         with raises(ValidationError) as exc_info:
             Predicate(lambda x: x in ['foo', 'bar'], message)('baz')
         assert exc_info.value.messages == message
+
+    def test_passing_context_to_predicate(self):
+        class NonLocal:
+            context = None
+
+        def validator(value, context=None):
+            NonLocal.context = context
+            return True
+
+        my_context = object()
+        Predicate(validator)('foo', my_context)
+        assert NonLocal.context == my_context
 
 
 class TestRange:
