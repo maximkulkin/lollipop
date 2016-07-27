@@ -21,6 +21,8 @@ __all__ = [
     'FunctionField',
     'Object',
     'Optional',
+    'LoadOnly',
+    'DumpOnly',
 ]
 
 class MissingType(object):
@@ -683,6 +685,66 @@ class Optional(Type):
         if data is MISSING or data is None:
             return self.dump_default
         return super(Optional, self).dump(self.inner_type.dump(data))
+
+    def __repr__(self):
+        return '<{klass} {inner_type}>'.format(
+            klass=self.__class__.__name__,
+            inner_type=repr(self.inner_type),
+        )
+
+
+class LoadOnly(Type):
+    """A wrapper type which proxies loading to inner type but always returns
+    :obj:`MISSING` on dump.
+
+    Example: ::
+
+        UserType = Object({
+            'name': String(),
+            'password': LoadOnly(String()),
+        })
+
+    :param Type inner_type: Data type.
+    """
+    def __init__(self, inner_type):
+        super(LoadOnly, self).__init__()
+        self.inner_type = inner_type
+
+    def load(self, data):
+        return self.inner_type.load(data)
+
+    def dump(self, data):
+        return MISSING
+
+    def __repr__(self):
+        return '<{klass} {inner_type}>'.format(
+            klass=self.__class__.__name__,
+            inner_type=repr(self.inner_type),
+        )
+
+
+class DumpOnly(Type):
+    """A wrapper type which proxies dumping to inner type but always returns
+    :obj:`MISSING` on load.
+
+    Example: ::
+
+        UserType = Object({
+            'name': String(),
+            'created_at': DumpOnly(DateTime()),
+        })
+
+    :param Type inner_type: Data type.
+    """
+    def __init__(self, inner_type):
+        super(DumpOnly, self).__init__()
+        self.inner_type = inner_type
+
+    def load(self, data):
+        return MISSING
+
+    def dump(self, data):
+        return self.inner_type.load(data)
 
     def __repr__(self):
         return '<{klass} {inner_type}>'.format(
