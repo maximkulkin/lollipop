@@ -22,8 +22,13 @@ __all__ = [
     'Object',
 ]
 
+class MissingType(object):
+    def __repr__(self):
+        return '<MISSING>'
+
+
 #: Special singleton value (like None) to represent case when value is missing.
-MISSING = object()
+MISSING = MissingType()
 
 
 class Type(ErrorMessagesMixin, object):
@@ -82,6 +87,9 @@ class Type(ErrorMessagesMixin, object):
         :param value: Value to serialize.
         """
         return value
+
+    def __repr__(self):
+        return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
 class Any(Type):
@@ -236,6 +244,12 @@ class List(Type):
 
         return super(List, self).dump(items)
 
+    def __repr__(self):
+        return '<{klass} of {item_type}>'.format(
+            klass=self.__class__.__name__,
+            item_type=repr(self.item_type),
+        )
+
 
 class Tuple(Type):
     """A heterogenous list type.
@@ -296,6 +310,12 @@ class Tuple(Type):
         errors_builder.raise_errors()
 
         return super(Tuple, self).dump(result)
+
+    def __repr__(self):
+        return '<{klass} of {item_types}>'.format(
+            klass=self.__class__.__name__,
+            item_type=repr(self.item_types),
+        )
 
 
 class DictWithDefault(object):
@@ -390,6 +410,9 @@ class Dict(Type):
         errors_builder.raise_errors()
 
         return super(Dict, self).dump(result)
+
+    def __repr__(self):
+        return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
 class Field(object):
