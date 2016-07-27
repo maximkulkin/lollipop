@@ -2,7 +2,7 @@ import pytest
 from zephyr.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
-    Optional
+    Optional, LoadOnly, DumpOnly
 from zephyr.errors import merge_errors
 from collections import namedtuple
 
@@ -756,3 +756,33 @@ class TestOptional:
 
     def test_overriding_None_value_on_dump(self):
         assert Optional(Any(), dump_default='foo').dump(None) == 'foo'
+
+
+class TestLoadOnly:
+    def test_loading_returns_inner_type_load_result(self):
+        inner_type = SpyType()
+        assert LoadOnly(inner_type).load('foo') == 'foo'
+        assert inner_type.load_called
+
+    def test_dumping_always_returns_missing(self):
+        assert LoadOnly(Any()).dump('foo') == MISSING
+
+    def test_dumping_does_not_call_inner_type_dump(self):
+        inner_type = SpyType()
+        LoadOnly(inner_type).dump('foo')
+        assert not inner_type.dump_called
+
+
+class TestDumpOnly:
+    def test_loading_always_returns_missing(self):
+        assert DumpOnly(Any()).load('foo') == MISSING
+
+    def test_loading_does_not_call_inner_type_dump(self):
+        inner_type = SpyType()
+        DumpOnly(inner_type).load('foo')
+        assert not inner_type.load_called
+
+    def test_dumping_returns_inner_type_load_result(self):
+        inner_type = SpyType()
+        assert DumpOnly(inner_type).dump('foo') == 'foo'
+        assert inner_type.load_called
