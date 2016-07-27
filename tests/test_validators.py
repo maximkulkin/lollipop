@@ -40,6 +40,18 @@ class TestPredicate:
             Predicate(lambda x: x in ['foo', 'bar'], message)('baz')
         assert exc_info.value.messages == message
 
+    def test_passing_context_to_predicate(self):
+        class NonLocal:
+            context = None
+
+        def validator(value, context=None):
+            NonLocal.context = context
+            return True
+
+        my_context = object()
+        Predicate(validator)('foo', my_context)
+        assert NonLocal.context == my_context
+
 
 class TestRange:
     def test_matching_min_value(self):
