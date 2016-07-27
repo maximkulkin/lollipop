@@ -5,15 +5,12 @@ from zephyr.types import MISSING, ValidationError, Type, Any, String, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
     Optional, LoadOnly, DumpOnly
 from zephyr.errors import merge_errors
+from zephyr.validators import Predicate
 from collections import namedtuple
 
 
 def validator(predicate, message='Something went wrong'):
-    def validate(value):
-        if not predicate(value):
-            raise ValidationError(message)
-
-    return validate
+    return Predicate(predicate, message)
 
 
 def constant_succeed_validator():
