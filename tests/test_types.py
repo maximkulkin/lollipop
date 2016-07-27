@@ -32,6 +32,27 @@ class TestString:
     def test_loading_string_value(self):
         assert String().load('foo') == 'foo'
 
+class SpyType(Type):
+    def __init__(self, load_result=None, dump_result=None):
+        super(Type, self).__init__()
+        self.loaded = None
+        self.load_called = False
+        self.load_result = load_result
+        self.dumped = None
+        self.dump_called = False
+        self.dump_result = dump_result
+
+    def load(self, data):
+        self.loaded = data
+        self.load_called = True
+        return self.load_result or data
+
+    def dump(self, value):
+        self.dumped = value
+        self.dump_called = True
+        return self.dump_result or value
+
+
 class RequiredTestsMixin:
     """Mixin that adds tests for reacting to missing/None values during load/dump.
     Host class should define `tested_type` properties.
@@ -300,25 +321,6 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
             Dict(Integer()).dump({'foo': 1, 'bar': 'abc'})
         message = Integer.default_error_messages['invalid']
         assert exc_info.value.messages == {'bar': message}
-
-
-class SpyType(Type):
-    def __init__(self):
-        super(Type, self).__init__()
-        self.loaded = None
-        self.load_called = False
-        self.dumped = None
-        self.dump_called = False
-
-    def load(self, data):
-        self.loaded = data
-        self.load_called = True
-        return data
-
-    def dump(self, value):
-        self.dumped = value
-        self.dump_called = True
-        return value
 
 
 class AttributeDummy:
@@ -593,8 +595,8 @@ class TestOptional:
 
 class TestLoadOnly:
     def test_loading_returns_inner_type_load_result(self):
-        inner_type = SpyType()
-        assert LoadOnly(inner_type).load('foo') == 'foo'
+        inner_type = SpyType(load_result='bar')
+        assert LoadOnly(inner_type).load('foo') == 'bar'
         assert inner_type.load_called
 
     def test_dumping_always_returns_missing(self):
@@ -615,7 +617,7 @@ class TestDumpOnly:
         DumpOnly(inner_type).load('foo')
         assert not inner_type.load_called
 
-    def test_dumping_returns_inner_type_load_result(self):
-        inner_type = SpyType()
-        assert DumpOnly(inner_type).dump('foo') == 'foo'
-        assert inner_type.load_called
+    def test_dumping_returns_inner_type_dump_result(self):
+        inner_type = SpyType(dump_result='bar')
+        assert DumpOnly(inner_type).dump('foo') == 'bar'
+        assert inner_type.dump_called

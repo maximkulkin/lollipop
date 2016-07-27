@@ -748,7 +748,7 @@ class DumpOnly(Type):
         return MISSING
 
     def dump(self, data):
-        return self.inner_type.load(data)
+        return self.inner_type.dump(data)
 
     def __repr__(self):
         return '<{klass} {inner_type}>'.format(
