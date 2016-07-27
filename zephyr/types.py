@@ -20,6 +20,7 @@ __all__ = [
     'MethodField',
     'FunctionField',
     'Object',
+    'Optional',
 ]
 
 class MissingType(object):
@@ -642,3 +643,49 @@ class Object(Type):
         errors_builder.raise_errors()
 
         return super(Object, self).dump(result)
+
+
+class Optional(Type):
+    """A wrapper type which makes values optional: if value is missing or None,
+    it will not transform it with an inner type but instead will return None
+    (or any other configured value).
+
+    Example: ::
+
+        UserType = Object({
+            'email': String(),           # by default types require valid values
+            'name': Optional(String()),  # value can be omitted or None
+            'role': Optional(            # when value is omitted or None, use given value
+                String(validate=AnyOf(['admin', 'customer'])),
+                load_default='customer',
+            ),
+        })
+
+    :param Type inner_type: Actual type that should be optional.
+    :param load_default: Value to use when value is missing on deserialization.
+    :param dump_default: Value to use when value is missing on serialization.
+    :param kwargs: Same keyword arguments as for :class:`Type`.
+    """
+    def __init__(self, inner_type,
+                 load_default=None, dump_default=None,
+                 **kwargs):
+        super(Optional, self).__init__(**kwargs)
+        self.inner_type = inner_type
+        self.load_default = load_default
+        self.dump_default = dump_default
+
+    def load(self, data):
+        if data is MISSING or data is None:
+            return self.load_default
+        return super(Optional, self).load(self.inner_type.load(data))
+
+    def dump(self, data):
+        if data is MISSING or data is None:
+            return self.dump_default
+        return super(Optional, self).dump(self.inner_type.dump(data))
+
+    def __repr__(self):
+        return '<{klass} {inner_type}>'.format(
+            klass=self.__class__.__name__,
+            inner_type=repr(self.inner_type),
+        )
