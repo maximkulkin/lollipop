@@ -1,7 +1,8 @@
 import pytest
-from zephyr.types import MISSING, ValidationError, Type, String, \
+from zephyr.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, List, Dict, \
-    Field, AttributeField, MethodField, FunctionField, ConstantField, Object
+    Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
+    Optional
 from zephyr.errors import merge_errors
 from collections import namedtuple
 
@@ -428,12 +429,21 @@ class TestDict:
 
 
 class SpyType(Type):
+    def __init__(self):
+        super(Type, self).__init__()
+        self.loaded = None
+        self.load_called = False
+        self.dumped = None
+        self.dump_called = False
+
     def load(self, data):
         self.loaded = data
+        self.load_called = True
         return data
 
     def dump(self, value):
         self.dumped = value
+        self.dump_called = True
         return value
 
 
@@ -690,3 +700,59 @@ class TestObject:
         Object({'foo': foo_field, 'bar': bar_field}).dump(obj)
         assert foo_field.dumped == ('foo', obj)
         assert bar_field.dumped == ('bar', obj)
+
+
+class TestOptional:
+    def test_loading_value_calls_load_of_inner_type(self):
+        inner_type = SpyType()
+        Optional(inner_type).load('foo')
+        assert inner_type.loaded == 'foo'
+
+    def test_loading_missing_value_returns_None(self):
+        assert Optional(Any()).load(MISSING) == None
+
+    def test_loading_None_returns_None(self):
+        assert Optional(Any()).load(None) == None
+
+    def test_loading_missing_value_does_not_call_inner_type_load(self):
+        inner_type = SpyType()
+        Optional(inner_type).load(None)
+        assert not inner_type.load_called
+
+    def test_loading_None_does_not_call_inner_type_load(self):
+        inner_type = SpyType()
+        Optional(inner_type).load(MISSING)
+        assert not inner_type.load_called
+
+    def test_overriding_missing_value_on_load(self):
+        assert Optional(Any(), load_default='foo').load(MISSING) == 'foo'
+
+    def test_overriding_None_value_on_load(self):
+        assert Optional(Any(), load_default='foo').load(None) == 'foo'
+
+    def test_dumping_value_calls_dump_of_inner_type(self):
+        inner_type = SpyType()
+        Optional(inner_type).dump('foo')
+        assert inner_type.dumped == 'foo'
+
+    def test_dumping_missing_value_returns_None(self):
+        assert Optional(Any()).dump(MISSING) == None
+
+    def test_dumping_None_returns_None(self):
+        assert Optional(Any()).dump(None) == None
+
+    def test_dumping_missing_value_does_not_call_inner_type_dump(self):
+        inner_type = SpyType()
+        Optional(inner_type).dump(MISSING)
+        assert not inner_type.dump_called
+
+    def test_dumping_None_does_not_call_inner_type_dump(self):
+        inner_type = SpyType()
+        Optional(inner_type).dump(None)
+        assert not inner_type.dump_called
+
+    def test_overriding_missing_value_on_dump(self):
+        assert Optional(Any(), dump_default='foo').dump(MISSING) == 'foo'
+
+    def test_overriding_None_value_on_dump(self):
+        assert Optional(Any(), dump_default='foo').dump(None) == 'foo'
