@@ -1,7 +1,8 @@
 import pytest
 from functools import partial
+import datetime
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
-    Number, Integer, Float, Boolean, List, Dict, \
+    Number, Integer, Float, Boolean, DateTime, Date, Time, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
     Optional, LoadOnly, DumpOnly
 from lollipop.errors import merge_errors
@@ -97,13 +98,13 @@ class ValidationTestsMixin:
         assert self.tested_type(
             validate=[constant_succeed_validator(),
                       constant_succeed_validator()],
-        ).load(self.valid_value) == self.valid_value
+        ).load(self.valid_data) == self.valid_value
 
     def test_loading_raises_ValidationError_if_validator_fails(self):
         message1 = 'Something went wrong'
         with pytest.raises(ValidationError) as exc_info:
             self.tested_type(validate=constant_fail_validator(message1))\
-                .load(self.valid_value)
+                .load(self.valid_data)
         assert exc_info.value.messages == message1
 
     def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
@@ -112,18 +113,19 @@ class ValidationTestsMixin:
         with pytest.raises(ValidationError) as exc_info:
             self.tested_type(validate=[constant_fail_validator(message1),
                                        constant_fail_validator(message2)])\
-                .load(self.valid_value)
+                .load(self.valid_data)
         assert exc_info.value.messages == merge_errors(message1, message2)
 
     def test_loading_passes_context_to_validator(self):
         context = object()
         validator = SpyValidator()
-        self.tested_type(validate=validator).load(self.valid_value, context)
+        self.tested_type(validate=validator).load(self.valid_data, context)
         assert validator.context == context
 
 
 class TestString(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = String
+    valid_data = 'foo'
     valid_value = 'foo'
 
     def test_loading_string_value(self):
@@ -145,6 +147,7 @@ class TestString(RequiredTestsMixin, ValidationTestsMixin):
 
 class TestNumber(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Number
+    valid_data = 1.23
     valid_value = 1.23
 
     def test_loading_float_value(self):
@@ -208,8 +211,9 @@ class TestFloat:
         assert exc_info.value.messages == Float.default_error_messages['invalid']
 
 
-class TestBoolean(ValidationTestsMixin):
+class TestBoolean(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Boolean
+    valid_data = True
     valid_value = True
 
     def test_loading_boolean_value(self):
@@ -231,8 +235,215 @@ class TestBoolean(ValidationTestsMixin):
         assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
 
+class TestDateTime(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = DateTime
+    valid_data = '2016-07-28T11:22:33UTC'
+    valid_value = datetime.datetime(2016, 7, 28, 11, 22, 33)
+
+    def test_loading_string_date(self):
+        assert DateTime().load('2011-12-13T11:22:33UTC') == \
+            datetime.datetime(2011, 12, 13, 11, 22, 33)
+
+    def test_loading_using_predefined_format(self):
+        assert DateTime(format='rfc822').load('13 Dec 11 11:22:33 UTC') == \
+            datetime.datetime(2011, 12, 13, 11, 22, 33)
+
+    def test_loading_using_custom_format(self):
+        assert DateTime(format='%m/%d/%Y %H:%M:%S').load('12/13/2011 11:22:33') == \
+            datetime.datetime(2011, 12, 13, 11, 22, 33)
+
+    def test_loading_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime().load(123)
+        assert exc_info.value.messages == \
+            DateTime.default_error_messages['invalid_type']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime(error_messages={
+                'invalid_type': 'Data {data} should be string',
+            }).load(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+    def test_loading_raises_ValidationError_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime().load('12/13/2011 11:22:33')
+        assert exc_info.value.messages == \
+            DateTime.default_error_messages['invalid_format']
+
+    def test_customizing_error_message_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime(format='%Y-%m-%d %H:%M', error_messages={
+                'invalid_format': 'Data {data} does not match format {format}',
+            }).load('12/13/2011')
+        assert exc_info.value.messages == \
+            'Data 12/13/2011 does not match format %Y-%m-%d %H:%M'
+
+    def test_loading_passes_deserialized_date_to_validator(self):
+        validator = SpyValidator()
+        DateTime(validate=validator).load('2011-12-13T11:22:33GMT')
+        assert validator.validated == datetime.datetime(2011, 12, 13, 11, 22, 33)
+
+    def test_dumping_date(self):
+        assert DateTime().dump(datetime.datetime(2011, 12, 13, 11, 22, 33)) == \
+            '2011-12-13T11:22:33'
+
+    def test_dumping_using_predefined_format(self):
+        assert DateTime(format='rfc822')\
+            .dump(datetime.datetime(2011, 12, 13, 11, 22, 33)) == \
+            '13 Dec 11 11:22:33 '
+
+    def test_dumping_using_custom_format(self):
+        assert DateTime(format='%m/%d/%Y %H:%M:%S')\
+            .dump(datetime.datetime(2011, 12, 13, 11, 22, 33)) == \
+            '12/13/2011 11:22:33'
+
+    def test_dumping_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime().dump(123)
+        assert exc_info.value.messages == DateTime.default_error_messages['invalid']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DateTime(error_messages={
+                'invalid': 'Data {data} should be string',
+            }).dump(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+
+class TestDate(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = Date
+    valid_data = '2016-07-28'
+    valid_value = datetime.date(2016, 7, 28)
+
+    def test_loading_string_date(self):
+        assert Date().load('2011-12-13') == datetime.date(2011, 12, 13)
+
+    def test_loading_using_predefined_format(self):
+        assert Date(format='rfc822').load('13 Dec 11') == datetime.date(2011, 12, 13)
+
+    def test_loading_using_custom_format(self):
+        assert Date(format='%m/%d/%Y').load('12/13/2011') == \
+            datetime.date(2011, 12, 13)
+
+    def test_loading_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date().load(123)
+        assert exc_info.value.messages == Date.default_error_messages['invalid_type']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date(error_messages={
+                'invalid_type': 'Data {data} should be string',
+            }).load(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+    def test_loading_raises_ValidationError_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date().load('12/13/2011')
+        assert exc_info.value.messages == Date.default_error_messages['invalid_format']
+
+    def test_customizing_error_message_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date(format='%Y-%m-%d', error_messages={
+                'invalid_format': 'Data {data} does not match format {format}',
+            }).load('12/13/2011')
+        assert exc_info.value.messages == \
+            'Data 12/13/2011 does not match format %Y-%m-%d'
+
+    def test_loading_passes_deserialized_date_to_validator(self):
+        validator = SpyValidator()
+        Date(validate=validator).load('2011-12-13')
+        assert validator.validated == datetime.date(2011, 12, 13)
+
+    def test_dumping_date(self):
+        assert Date().dump(datetime.date(2011, 12, 13)) == '2011-12-13'
+
+    def test_dumping_using_predefined_format(self):
+        assert Date(format='rfc822').dump(datetime.date(2011, 12, 13)) == '13 Dec 11'
+
+    def test_dumping_using_custom_format(self):
+        assert Date(format='%m/%d/%Y').dump(datetime.date(2011, 12, 13)) == \
+            '12/13/2011'
+
+    def test_dumping_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date().dump(123)
+        assert exc_info.value.messages == Date.default_error_messages['invalid']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Date(error_messages={
+                'invalid': 'Data {data} should be string',
+            }).dump(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+
+class TestTime(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = Time
+    valid_data = '11:22:33'
+    valid_value = datetime.time(11, 22, 33)
+
+    def test_loading_string_date(self):
+        assert Time().load('11:22:33') == datetime.time(11, 22, 33)
+
+    def test_loading_using_custom_format(self):
+        assert Time(format='%H %M %S').load('11 22 33') == \
+            datetime.time(11, 22, 33)
+
+    def test_loading_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time().load(123)
+        assert exc_info.value.messages == Time.default_error_messages['invalid_type']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time(error_messages={
+                'invalid_type': 'Data {data} should be string',
+            }).load(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+    def test_loading_raises_ValidationError_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time().load('12/13/2011')
+        assert exc_info.value.messages == Time.default_error_messages['invalid_format']
+
+    def test_customizing_error_message_if_value_string_does_not_match_date_format(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time(format='%H:%M:%S', error_messages={
+                'invalid_format': 'Data {data} does not match format {format}',
+            }).load('11 22 33')
+        assert exc_info.value.messages == \
+            'Data 11 22 33 does not match format %H:%M:%S'
+
+    def test_loading_passes_deserialized_date_to_validator(self):
+        validator = SpyValidator()
+        Time(validate=validator).load('11:22:33')
+        assert validator.validated == datetime.time(11, 22, 33)
+
+    def test_dumping_date(self):
+        assert Time().dump(datetime.time(11, 22, 33)) == '11:22:33'
+
+    def test_dumping_using_custom_format(self):
+        assert Time(format='%H %M %S').dump(datetime.time(11, 22, 33)) == \
+            '11 22 33'
+
+    def test_dumping_raises_ValidationError_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time().dump(123)
+        assert exc_info.value.messages == Time.default_error_messages['invalid']
+
+    def test_customizing_error_message_if_value_is_not_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Time(error_messages={
+                'invalid': 'Data {data} should be string',
+            }).dump(123)
+        assert exc_info.value.messages == 'Data 123 should be string'
+
+
 class TestList(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(List, String())
+    valid_data = ['foo', 'bar']
     valid_value = ['foo', 'bar']
 
     def test_loading_list_value(self):
@@ -293,6 +504,7 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
 
 class TestDict(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Dict, Integer())
+    valid_data = {'foo': 123, 'bar': 456}
     valid_value = {'foo': 123, 'bar': 456}
 
     def test_loading_dict_with_values_of_the_same_type(self):
@@ -521,6 +733,7 @@ class SpyField(Field):
 
 class TestObject(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Object, {'foo': String(), 'bar': Integer()})
+    valid_data = {'foo': 'hello', 'bar': 123}
     valid_value = {'foo': 'hello', 'bar': 123}
 
     def test_loading_dict_value(self):
