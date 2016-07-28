@@ -1,11 +1,11 @@
 import pytest
 from functools import partial
-from zephyr.types import MISSING, ValidationError, Type, Any, String, \
+from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
     Optional, LoadOnly, DumpOnly
-from zephyr.errors import merge_errors
-from zephyr.validators import Validator, Predicate
+from lollipop.errors import merge_errors
+from lollipop.validators import Validator, Predicate
 from collections import namedtuple
 
 

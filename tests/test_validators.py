@@ -1,7 +1,7 @@
 from pytest import raises
 from contextlib import contextmanager
-from zephyr.validators import Predicate, Range, Length, NoneOf, AnyOf, Regexp
-from zephyr.errors import ValidationError
+from lollipop.validators import Predicate, Range, Length, NoneOf, AnyOf, Regexp
+from lollipop.errors import ValidationError
 import re
 
 

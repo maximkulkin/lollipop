@@ -1,15 +1,15 @@
-# zephyr
+# lollipop
 
-[![Build Status](https://travis-ci.org/maximkulkin/zephyr.svg)](https://travis-ci.org/maximkulkin/zephyr)
-[![Documentation Status](https://readthedocs.org/projects/zephyr/badge/?version=latest)](http://zephyr.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/maximkulkin/lollipop.svg)](https://travis-ci.org/maximkulkin/lollipop)
+[![Documentation Status](https://readthedocs.org/projects/lollipop/badge/?version=latest)](http://lollipop.readthedocs.io/en/latest/?badge=latest)
 
 Data serialization and validation library
 
 Example
 
 ```python
-from zephyr.types import Object, String, Date
-from zephyr.validators import Length
+from lollipop.types import Object, String, Date
+from lollipop.validators import Length
 from datetime import date
 
 Person = namedtuple('Person', ['name'])
@@ -49,7 +49,7 @@ BookType.validate({'title': 'Moby-Dick', 'author': {'name': ''}})
 ## Installation
 
 ```
-pip install zephyr
+pip install lollipop
 ```
 
 ## Requirements

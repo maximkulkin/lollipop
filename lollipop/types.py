@@ -1,7 +1,7 @@
-from zephyr.errors import ValidationError, ValidationErrorBuilder, \
+from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from zephyr.utils import is_list, is_dict, call_with_context
-from zephyr.compat import string_types, int_types, iteritems
+from lollipop.utils import is_list, is_dict, call_with_context
+from lollipop.compat import string_types, int_types, iteritems
 
 
 __all__ = [
@@ -39,7 +39,7 @@ class Type(ErrorMessagesMixin, object):
 
     :param list validate: A validator or list of validators for this data type.
         Validator is a callable that takes serialized data and raises
-        :exc:`~zephyr.errors.ValidationError` if data is invalid.
+        :exc:`~lollipop.errors.ValidationError` if data is invalid.
         Validator return value is ignored.
     """
 
@@ -71,7 +71,7 @@ class Type(ErrorMessagesMixin, object):
 
     def load(self, data, context=None):
         """Deserialize data from primitive types. Raises
-        :exc:`~zephyr.errors.ValidationError` if data is invalid.
+        :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
         :param data: Data to deserialize.
         :param context: Context data.
@@ -87,7 +87,7 @@ class Type(ErrorMessagesMixin, object):
 
     def dump(self, value, context=None):
         """Serialize data to primitive types. Raises
-        :exc:`~zephyr.errors.ValidationError` if data is invalid.
+        :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
         :param value: Value to serialize.
         :param context: Context data.
@@ -441,7 +441,7 @@ class Field(object):
 
     def load(self, name, data, *args, **kwargs):
         """Deserialize data from primitive types. Raises
-        :exc:`~zephyr.errors.ValidationError` if data is invalid.
+        :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
         :param str name: Name of attribute to deserialize.
         :param data: Raw data to get value to deserialize from.
@@ -450,7 +450,7 @@ class Field(object):
 
     def dump(self, name, obj, *args, **kwargs):
         """Serialize data to primitive types. Raises
-        :exc:`~zephyr.errors.ValidationError` if data is invalid.
+        :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
         :param str name: Name of attribute to serialize.
         :param obj: Application object to extract serialized value from.
@@ -588,7 +588,7 @@ class Object(Type):
     :param Field default_field_type: Default field type to use for fields defined
         by their type.
     :param bool allow_extra_fields: If False, it will raise
-        :exc:`~zephyr.errors.ValidationError` for all extra dict keys during
+        :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
         deserialization. If True, will ignore all extra fields.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """

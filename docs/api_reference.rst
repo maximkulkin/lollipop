@@ -4,22 +4,22 @@
 API Reference
 *************
 
-.. module:: zephyr
+.. module:: lollipop
 
 Types
 =====
 
-.. automodule:: zephyr.types
+.. automodule:: lollipop.types
     :members:
 
 Validators
 ==========
 
-.. automodule:: zephyr.validators
+.. automodule:: lollipop.validators
     :members:
 
 Errors
 ======
 
-.. automodule:: zephyr.errors
+.. automodule:: lollipop.errors
     :members:
