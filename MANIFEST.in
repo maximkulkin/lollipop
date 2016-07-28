@@ -1,4 +1,8 @@
-include *.md LICENSE
+include *.md *.rst LICENSE
+recursive-include docs *
+recursive-exclude docs *.pyc
+recursive-exclude docs *.pyo
 recursive-include tests *
 recursive-exclude tests *.pyc
 recursive-exclude tests *.pyo
+prune docs/_build
