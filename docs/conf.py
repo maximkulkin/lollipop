@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Zephyr documentation build configuration file, created by
+# Lollipop documentation build configuration file, created by
 # sphinx-quickstart on Sun Jul 24 02:11:49 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -57,7 +57,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Zephyr'
+project = u'Lollipop'
 copyright = u'2016, Maxim Kulkin'
 author = u'Maxim Kulkin'
 
@@ -142,7 +142,7 @@ html_theme = 'alabaster'
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-# html_title = u'Zephyr v0.1'
+# html_title = u'Lollipop v0.1'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
@@ -242,7 +242,7 @@ html_static_path = ['_static']
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Zephyrdoc'
+htmlhelp_basename = 'Lollipopdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -268,7 +268,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Zephyr.tex', u'Zephyr Documentation',
+    (master_doc, 'Lollipop.tex', u'Lollipop Documentation',
      u'Maxim Kulkin', 'manual'),
 ]
 
@@ -310,7 +310,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'zephyr', u'Zephyr Documentation',
+    (master_doc, 'Lollipop', u'Lollipop Documentation',
      [author], 1)
 ]
 
@@ -325,8 +325,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Zephyr', u'Zephyr Documentation',
-     author, 'Zephyr', 'One line description of project.',
+    (master_doc, 'Lollipop', u'Lollipop Documentation',
+     author, 'Lollipop', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -346,4 +346,4 @@ texinfo_documents = [
 #
 # texinfo_no_detailmenu = False
 
-issues_github_path = 'maximkulkin/zephyr'
+issues_github_path = 'maximkulkin/lollipop'

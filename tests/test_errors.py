@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 
-from zephyr.errors import ValidationError, ValidationErrorBuilder, merge_errors
+from lollipop.errors import ValidationError, ValidationErrorBuilder, merge_errors
 
 
 CustomError = namedtuple('CustomError', ['code', 'message'])

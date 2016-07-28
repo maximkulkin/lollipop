@@ -24,7 +24,7 @@ Let's start with a your application-level model: ::
 You want to create a JSON API to load and dump it. First you need to define a
 type for that data: ::
 
-    from zephyr.types import Object, String, Date
+    from lollipop.types import Object, String, Date
 
     PersonType = Object({
         'name': String(),
@@ -77,7 +77,7 @@ when you define your type: ::
     })
     # <Person name="Bill" birthdate=date(1994, 08, 12)>
 
-To deserialize a list of objects, you can create a :class:`~zephyr.types.List`
+To deserialize a list of objects, you can create a :class:`~lollipop.types.List`
 instance with your object type as element type: ::
 
     List(PersonType).load([
@@ -92,9 +92,9 @@ Validation
 ----------
 
 By default all fields are required to have values, so if you accidentally forget
-to specify one, you will get a :exc:`~zephyr.errors.ValidationError` exception: ::
+to specify one, you will get a :exc:`~lollipop.errors.ValidationError` exception: ::
 
-    from zephyr.errors import ValidationError
+    from lollipop.errors import ValidationError
 
     try:
         PersonType.load({"name": "Bob"})
@@ -106,7 +106,7 @@ get validation error.
 
 If you want more control on your data, you can specify additional validators: ::
 
-    from zephyr.validators import Regexp
+    from lollipop.validators import Regexp
 
     email_validator = Regexp(
         '(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)',
@@ -150,7 +150,7 @@ You can define your own validators: ::
     # => {'name': 'Should not be called Bob',
     #     'age': 'Should be at least 18 years old'}
 
-or use :class:`~zephyr.validators.Predicate` validator and supply a True/False
+or use :class:`~lollipop.validators.Predicate` validator and supply a True/False
 function to it.
 
 Validating cross-field dependencies is easy: ::
@@ -162,14 +162,14 @@ Validating cross-field dependencies is easy: ::
 Changing The Way Accessing Object Data
 --------------------------------------
 
-When you define an :class:`~zephyr.types.Object` type, by default it will retrieve 
+When you define an :class:`~lollipop.types.Object` type, by default it will retrieve 
 object data by accessing object's attributes with the same name as name of the field
 you define. Most often it is what you want. However sometimes you might want to
 obtain data differently. To do that, you define object's fields not with
-:class:`~zephyr.types.Type` instances, but with :class:`~zephyr.types.Field`
+:class:`~lollipop.types.Type` instances, but with :class:`~lollipop.types.Field`
 instances.
 
-To access attribute with a different name, use :class:`~zephyr.types.AttributeField`:
+To access attribute with a different name, use :class:`~lollipop.types.AttributeField`:
 ::
 
     MyObject = namedtuple('MyObject', ['other_field'])
@@ -179,7 +179,7 @@ To access attribute with a different name, use :class:`~zephyr.types.AttributeFi
     })
 
 To get data from a method instead of an attribute, use
-:class:`~zephyr.types.MethodField`: ::
+:class:`~lollipop.types.MethodField`: ::
 
     class Person:
         def __init__(self, first_name, last_name):

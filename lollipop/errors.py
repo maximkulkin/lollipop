@@ -1,4 +1,4 @@
-from zephyr.compat import iteritems
+from lollipop.compat import iteritems
 
 
 __all__ = [

@@ -1,4 +1,4 @@
-from zephyr.utils import call_with_context
+from lollipop.utils import call_with_context
 
 
 class ObjMethodDummy:

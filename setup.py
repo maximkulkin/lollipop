@@ -19,7 +19,7 @@ def find_version(fname):
         raise RuntimeError('Cannot find version information')
     return version
 
-__version__ = find_version("zephyr/__init__.py")
+__version__ = find_version("lollipop/__init__.py")
 
 
 def read(fname):
@@ -28,14 +28,14 @@ def read(fname):
     return content
 
 setup(
-    name='zephyr',
+    name='lollipop',
     version=__version__,
     description=('Data serialization and validation library'),
     long_description=read('README.md'),
     author='Maxim Kulkin',
     author_email='maxim.kulkin@gmail.com',
-    url='https://github.com/maximkulkin/zephyr',
-    packages=['zephyr'],
+    url='https://github.com/maximkulkin/lollipop',
+    packages=['lollipop'],
     include_package_data=True,
     license='MIT',
     zip_safe=False,

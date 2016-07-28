@@ -3,18 +3,18 @@
 Installation
 ============
 
-**zephyr** requries Python >= 2.6 or <= 3.5. It has no external dependencies other
+**lollipop** requries Python >= 2.6 or <= 3.5. It has no external dependencies other
 than the Python standard library.
 
 ::
 
-    $ pip install zephyr
+    $ pip install lollipop
 
 Bleeding Edge
 -------------
 
-To get latest development version of zephyr, run
+To get latest development version of lollipop, run
 
 ::
 
-    $ pip install git+https://github.com/maximkulkin/zephyr.git
+    $ pip install git+https://github.com/maximkulkin/lollipop.git

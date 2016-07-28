@@ -1,8 +1,8 @@
-.. zephyr documentation master file
+.. Lollipop documentation master file
 
-*******************************************
-zephyr: object serialization and validation
-*******************************************
+*********************************************
+lollipop: object serialization and validation
+*********************************************
 
 Guide
 =====

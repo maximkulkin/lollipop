@@ -1,6 +1,6 @@
-from zephyr.errors import ValidationError, ErrorMessagesMixin
-from zephyr.compat import string_types
-from zephyr.utils import call_with_context
+from lollipop.errors import ValidationError, ErrorMessagesMixin
+from lollipop.compat import string_types
+from lollipop.utils import call_with_context
 import re
 
 
@@ -11,13 +11,13 @@ class Validator(ErrorMessagesMixin, object):
     class should define `__call__` method with either one or two arguments. In both
     cases, first argument is value being validated. In case of two arguments, the
     second one is the context. If given value fails validation, `__call__` method
-    should raise :exc:`~zephyr.errors.ValidationError`. Return value is always
+    should raise :exc:`~lollipop.errors.ValidationError`. Return value is always
     ignored.
     """
 
     def __call__(self, value, context=None):
         """Validate value. In case of errors, raise
-        :exc:`~zephyr.errors.ValidationError`. Return value is always ignored.
+        :exc:`~lollipop.errors.ValidationError`. Return value is always ignored.
         """
         raise NotImplemented()
 
