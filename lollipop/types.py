@@ -2,6 +2,7 @@ from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
 from lollipop.utils import is_list, is_dict, call_with_context
 from lollipop.compat import string_types, int_types, iteritems
+import datetime
 
 
 __all__ = [
@@ -194,6 +195,118 @@ class Boolean(Type):
             self._fail('invalid')
 
         return super(Boolean, self).dump(bool(value), *args, **kwargs)
+
+
+class DateTime(Type):
+    """A date and time type which serializes into string.
+
+    :param str format: Format string (see :func:`datetime.datetime.strptime`) or
+        one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.
+        See :const:`~DateTime.FORMATS`)
+    :param kwargs: Same keyword arguments as for :class:`Type`.
+    """
+
+    FORMATS = {
+        'iso': '%Y-%m-%dT%H:%M:%S%Z',  # shortcut for iso8601
+        'iso8601': '%Y-%m-%dT%H:%M:%S%Z',
+        'rfc': '%Y-%m-%d',             # shortcut for rfc3339
+        'rfc3339': '%Y-%m-%dT%H:%M:%S%Z',
+        'rfc822': '%d %b %y %H:%M:%S %Z',
+    }
+
+    DEFAULT_FORMAT = 'iso'
+
+    default_error_messages = {
+        'invalid': 'Invalid datetime value',
+        'invalid_type': 'Value should be string',
+        'invalid_format': 'Value should match datetime format',
+    }
+
+    def __init__(self, format=None, *args, **kwargs):
+        super(DateTime, self).__init__(*args, **kwargs)
+        self.format = format or self.DEFAULT_FORMAT
+
+    def _convert_value(self, value):
+        return value
+
+    def load(self, data, *args, **kwargs):
+        if data is MISSING or data is None:
+            self._fail('required')
+
+        if not isinstance(data, string_types):
+            self._fail('invalid_type', data=data)
+
+        format_str = self.FORMATS.get(self.format, self.format)
+        try:
+            date = self._convert_value(datetime.datetime.strptime(data, format_str))
+            return super(DateTime, self).load(date, *args, **kwargs)
+        except ValueError:
+            self._fail('invalid_format', data=data, format=format_str)
+
+    def dump(self, value, *args, **kwargs):
+        if value is MISSING or value is None:
+            self._fail('required')
+
+        format_str = self.FORMATS.get(self.format, self.format)
+        try:
+            return super(DateTime, self)\
+                .dump(value.strftime(format_str), *args, **kwargs)
+        except (AttributeError, ValueError):
+            self._fail('invalid', data=value)
+
+
+class Date(DateTime):
+    """A date type which serializes into string.
+
+    :param str format: Format string (see :func:`datetime.datetime.strptime`) or
+        one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.
+        See :const:`~Date.FORMATS`)
+    :param kwargs: Same keyword arguments as for :class:`Type`.
+    """
+
+    FORMATS = {
+        'iso': '%Y-%m-%d',  # shortcut for iso8601
+        'iso8601': '%Y-%m-%d',
+        'rfc': '%Y-%m-%d',  # shortcut for rfc3339
+        'rfc3339': '%Y-%m-%d',
+        'rfc822': '%d %b %y',
+    }
+
+    DEFAULT_FORMAT = 'iso'
+
+    default_error_messages = {
+        'invalid': 'Invalid date value',
+        'invalid_type': 'Value should be string',
+        'invalid_format': 'Value should match date format',
+    }
+
+    def _convert_value(self, value):
+        return value.date()
+
+
+class Time(DateTime):
+    """A date type which serializes into string.
+
+    :param str format: Format string (see :func:`datetime.datetime.strptime`) or
+        one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.)
+    :param kwargs: Same keyword arguments as for :class:`Type`.
+    """
+
+    FORMATS = {
+        'iso': '%H:%M:%S',  # shortcut for iso8601
+        'iso8601': '%H:%M:%S',
+    }
+
+    DEFAULT_FORMAT = 'iso'
+
+    default_error_messages = {
+        'invalid': 'Invalid time value',
+        'invalid_type': 'Value should be string',
+        'invalid_format': 'Value should match time format',
+    }
+
+    def _convert_value(self, value):
+        return value.time()
 
 
 class List(Type):
