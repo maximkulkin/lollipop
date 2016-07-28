@@ -97,13 +97,13 @@ class ValidationTestsMixin:
         assert self.tested_type(
             validate=[constant_succeed_validator(),
                       constant_succeed_validator()],
-        ).load(self.valid_value) == self.valid_value
+        ).load(self.valid_data) == self.valid_value
 
     def test_loading_raises_ValidationError_if_validator_fails(self):
         message1 = 'Something went wrong'
         with pytest.raises(ValidationError) as exc_info:
             self.tested_type(validate=constant_fail_validator(message1))\
-                .load(self.valid_value)
+                .load(self.valid_data)
         assert exc_info.value.messages == message1
 
     def test_loading_raises_ValidationError_with_combined_messages_if_multiple_validators_fail(self):
@@ -112,18 +112,19 @@ class ValidationTestsMixin:
         with pytest.raises(ValidationError) as exc_info:
             self.tested_type(validate=[constant_fail_validator(message1),
                                        constant_fail_validator(message2)])\
-                .load(self.valid_value)
+                .load(self.valid_data)
         assert exc_info.value.messages == merge_errors(message1, message2)
 
     def test_loading_passes_context_to_validator(self):
         context = object()
         validator = SpyValidator()
-        self.tested_type(validate=validator).load(self.valid_value, context)
+        self.tested_type(validate=validator).load(self.valid_data, context)
         assert validator.context == context
 
 
 class TestString(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = String
+    valid_data = 'foo'
     valid_value = 'foo'
 
     def test_loading_string_value(self):
@@ -145,6 +146,7 @@ class TestString(RequiredTestsMixin, ValidationTestsMixin):
 
 class TestNumber(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Number
+    valid_data = 1.23
     valid_value = 1.23
 
     def test_loading_float_value(self):
@@ -208,8 +210,9 @@ class TestFloat:
         assert exc_info.value.messages == Float.default_error_messages['invalid']
 
 
-class TestBoolean(ValidationTestsMixin):
+class TestBoolean(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Boolean
+    valid_data = True
     valid_value = True
 
     def test_loading_boolean_value(self):
@@ -233,6 +236,7 @@ class TestBoolean(ValidationTestsMixin):
 
 class TestList(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(List, String())
+    valid_data = ['foo', 'bar']
     valid_value = ['foo', 'bar']
 
     def test_loading_list_value(self):
@@ -293,6 +297,7 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
 
 class TestDict(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Dict, Integer())
+    valid_data = {'foo': 123, 'bar': 456}
     valid_value = {'foo': 123, 'bar': 456}
 
     def test_loading_dict_with_values_of_the_same_type(self):
@@ -521,6 +526,7 @@ class SpyField(Field):
 
 class TestObject(RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Object, {'foo': String(), 'bar': Integer()})
+    valid_data = {'foo': 'hello', 'bar': 123}
     valid_value = {'foo': 'hello', 'bar': 123}
 
     def test_loading_dict_value(self):
