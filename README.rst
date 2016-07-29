@@ -20,7 +20,7 @@ Data serialization and validation library
     from datetime import date
 
     Person = namedtuple('Person', ['name'])
-    Book = namedtuple('Book', ['title', 'author'])
+    Book = namedtuple('Book', ['title', 'publish_date', 'author'])
 
     PersonType = Object({
         'name': String(validate=Length(min=1)),
