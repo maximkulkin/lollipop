@@ -31,7 +31,7 @@ setup(
     name='lollipop',
     version=__version__,
     description=('Data serialization and validation library'),
-    long_description=read('README.md'),
+    long_description=read('README.rst'),
     author='Maxim Kulkin',
     author_email='maxim.kulkin@gmail.com',
     url='https://github.com/maximkulkin/lollipop',
