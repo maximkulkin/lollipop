@@ -2,9 +2,9 @@ import pytest
 from functools import partial
 import datetime
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
-    Number, Integer, Float, Boolean, DateTime, Date, Time, List, Dict, \
+    Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
-    Optional, LoadOnly, DumpOnly
+    Optional, LoadOnly, DumpOnly, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from collections import namedtuple
@@ -573,6 +573,125 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
         context = object()
         Dict(inner_type).dump({'foo': 123}, context)
         assert inner_type.dump_context == context
+
+
+class TestOneOf:
+    def test_loading_values_of_one_of_listed_types(self):
+        one_of = OneOf([Integer(), String()])
+        assert one_of.load('foo') == 'foo'
+        assert one_of.load(123) == 123
+
+    def test_loading_raises_ValidationError_if_value_is_of_unlisted_type(self):
+        one_of = OneOf([Integer(), String()])
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.load({'foo': 'bar'})
+        assert exc_info.value.messages == OneOf.default_error_messages['invalid']
+
+    def test_loading_raises_ValidationError_if_deserialized_value_has_errors(self):
+        message = 'Something is wrong'
+        one_of = OneOf([
+            Object({'foo': String()}),
+            Object({'bar': Object({
+                'baz': Integer(validate=constant_fail_validator(message))
+            })}),
+        ])
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.load({'bar': {'baz': 123}})
+        assert exc_info.value.messages == 'Invalid data'
+
+    def test_loading_with_type_hinting(self):
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar', 'baz'])
+
+        FooType = Object({'foo': String()}, constructor=Foo)
+        BarType = Object({'bar': Integer(), 'baz': Boolean()}, constructor=Bar)
+
+        one_of = OneOf({
+            'Foo': Object(FooType, {'type': 'foo'}, constructor=FooType.constructor),
+            'Bar': Object(BarType, {'type': 'bar'}, constructor=BarType.constructor),
+        }, load_hint=dict_value_hint('type', str.capitalize))
+
+        assert one_of.load({'type': 'foo', 'foo': 'hello'}) == \
+            Foo(foo='hello')
+        assert one_of.load({'type': 'bar', 'bar': 123, 'baz': True}) == \
+            Bar(bar=123, baz=True)
+
+    def test_loading_with_type_hinting_raises_ValidationError_if_deserialized_value_has_errors(self):
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar', 'baz'])
+
+        FooType = Object({'foo': String()}, constructor=Foo)
+        BarType = Object({'bar': Integer(), 'baz': Boolean()}, constructor=Bar)
+
+        one_of = OneOf({
+            'Foo': Object(FooType, {'type': 'foo'}, constructor=FooType.constructor),
+            'Bar': Object(BarType, {'type': 'bar'}, constructor=BarType.constructor),
+        }, load_hint=dict_value_hint('type', str.capitalize))
+
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.load({'type': 'bar', 'bar': 'abc'})
+        assert exc_info.value.messages == {'bar': 'Value should be integer',
+                                           'baz': 'Value is required'}
+
+    def test_dumping_values_of_one_of_listed_types(self):
+        one_of = OneOf([Integer(), String()])
+        assert one_of.dump('foo') == 'foo'
+        assert one_of.dump(123) == 123
+
+    def test_dumping_raises_ValidationError_if_value_is_of_unlisted_type(self):
+        one_of = OneOf([Integer(), String()])
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.dump({'foo': 'bar'})
+        assert exc_info.value.messages == OneOf.default_error_messages['invalid']
+
+    def test_dumping_raises_ValidationError_if_serialized_value_has_errors(self):
+        Baz = namedtuple('Baz', ['baz'])
+        Bar = namedtuple('Bar', ['bar'])
+
+        message = 'Something is wrong'
+        one_of = OneOf([
+            Object({'foo': String()}),
+            Object({'bar': Object({
+                'baz': Integer(validate=constant_fail_validator(message))
+            })}),
+        ])
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.dump(Bar(bar=Baz(baz='hello')))
+        assert exc_info.value.messages == 'Invalid data'
+
+    def test_dumping_with_type_hinting(self):
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar', 'baz'])
+
+        FooType = Object({'foo': String()}, constructor=Foo)
+        BarType = Object({'bar': Integer(), 'baz': Boolean()}, constructor=Bar)
+
+        one_of = OneOf({
+            'Foo': Object(FooType, {'type': 'foo'}, constructor=FooType.constructor),
+            'Bar': Object(BarType, {'type': 'bar'}, constructor=BarType.constructor),
+        }, load_hint=dict_value_hint('type', str.capitalize))
+
+        assert one_of.dump(Foo(foo='hello')) == \
+            {'type': 'foo', 'foo': 'hello'}
+        assert one_of.dump(Bar(bar=123, baz=True)) == \
+            {'type': 'bar', 'bar': 123, 'baz': True}
+
+    def test_dumping_with_type_hinting_raises_ValidationError_if_deserialized_value_has_errors(self):
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar', 'baz'])
+        FooType = Object({'foo': String()}, constructor=Foo)
+        BarType = Object({'bar': Integer(), 'baz': Boolean()}, constructor=Bar)
+
+        one_of = OneOf({
+            'Foo': Object(FooType, {'type': 'foo'}, constructor=FooType.constructor),
+            'Bar': Object(BarType, {'type': 'bar'}, constructor=BarType.constructor),
+        }, load_hint=dict_value_hint('type', str.capitalize))
+
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.dump(Bar(bar='hello', baz=None))
+        assert exc_info.value.messages == {'bar': 'Value should be integer',
+                                           'baz': 'Value is required'}
+
 
 class AttributeDummy:
     foo = 'hello'
