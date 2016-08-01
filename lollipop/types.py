@@ -761,7 +761,7 @@ class Object(Type):
                 if dumped != MISSING:
                     result[name] = dumped
             except ValidationError as ve:
-                errors_builder.add_error(k, ve.messages)
+                errors_builder.add_error(name, ve.messages)
         errors_builder.raise_errors()
 
         return super(Object, self).dump(result, *args, **kwargs)
