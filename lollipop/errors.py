@@ -34,7 +34,7 @@ class ValidationError(Exception):
         where keys are nested fields and values are error messages.
     """
     def __init__(self, messages):
-        super(ValidationError, self).__init__('Invalid data')
+        super(ValidationError, self).__init__('Invalid data: %r' % messages)
         # TODO: normalize messages
         self.messages = messages
 

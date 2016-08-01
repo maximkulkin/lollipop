@@ -50,7 +50,7 @@ Data serialization and validation library
 
     BookType.validate({'title': 'Moby-Dick', 'author': {'name': ''}})
     # => {'author': {'name': 'Length should be at least 1'},
-          'publish_date': 'Value is required'}
+    #     'publish_date': 'Value is required'}
 
 
 Installation
