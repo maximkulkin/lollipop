@@ -689,7 +689,25 @@ class TestFunctionField:
 class TestConstantField:
     def test_loading_always_returns_missing(self):
         assert ConstantField(SpyType(), 42)\
-            .load('foo', {'foo': 'hello', 'bar': 123}) == MISSING
+            .load('foo', {'foo': 42, 'bar': 123}) == MISSING
+
+    def test_loading_raises_ValidationError_if_loaded_value_is_not_a_constant_value_specified(self):
+        with pytest.raises(ValidationError) as exc_info:
+            ConstantField(SpyType(), 42).load('foo', {'foo': 43, 'bar': 123})
+        assert exc_info.value.messages == ConstantField.default_error_messages['value']
+
+    def test_loading_value_with_inner_type_before_checking_value_correctness(self):
+        inner_type = SpyType(load_result=42)
+        assert ConstantField(inner_type, 42)\
+            .load('foo', {'foo': 44, 'bar': 123}) == MISSING
+        assert inner_type.loaded == 44
+
+    def test_customizing_error_message_when_value_is_incorrect(self):
+        message = 'Bad value'
+        with pytest.raises(ValidationError) as exc_info:
+            ConstantField(SpyType(), 42, error_messages={'value': message})\
+                .load('foo', {'foo': 43, 'bar': 123})
+        assert exc_info.value.messages == message
 
     def test_dumping_always_returns_given_value(self):
         assert ConstantField(SpyType(), 42)\

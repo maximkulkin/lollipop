@@ -578,12 +578,29 @@ class ConstantField(Field):
     :param Type field_type: Field type.
     :param value: Value constant for this field.
     """
+
+    default_error_messages = {
+        'required': 'Value is required',
+        'value': 'Value is incorrect',
+    }
+
     def __init__(self, field_type, value, *args, **kwargs):
         super(ConstantField, self).__init__(field_type, *args, **kwargs)
         self.value = value
 
     def _get_value(self, name, obj, *args, **kwargs):
         return self.value
+
+    def load(self, name, data, *args, **kwargs):
+        value = data.get(name, MISSING)
+        if value is MISSING or value is None:
+            self._fail('required')
+
+        result = self.field_type.load(value)
+        if result != MISSING and result != self.value:
+            self._fail('value')
+
+        return MISSING
 
 
 class AttributeField(Field):
