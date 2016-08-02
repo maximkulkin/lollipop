@@ -808,6 +808,29 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         unknown = Object.default_error_messages['unknown']
         assert exc_info.value.messages == {'bar': unknown, 'baz': unknown}
 
+    def test_loading_inherited_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object(Type1, {'bar': Integer()})
+        Type3 = Object(Type2, {'baz': Boolean()})
+        assert Type3.load({'foo': 'hello', 'bar': 123, 'baz': True}) == \
+            {'foo': 'hello', 'bar': 123, 'baz': True}
+
+    def test_loading_multiple_inherited_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': Integer()})
+        Type3 = Object([Type1, Type2], {'baz': Boolean()})
+        assert Type3.load({'foo': 'hello', 'bar': 123, 'baz': True}) == \
+            {'foo': 'hello', 'bar': 123, 'baz': True}
+
+    def test_loading_raises_ValidationError_if_inherited_fields_have_errors(self):
+        message = 'Invalid value'
+        Type1 = Object({'foo': String(validate=constant_fail_validator(message))})
+        Type2 = Object(Type1, {'bar': Integer()})
+        Type3 = Object(Type2, {'baz': Boolean()})
+        with pytest.raises(ValidationError) as exc_info:
+            Type3.load({'foo': 'hello', 'baz': True})
+        assert exc_info.value.messages == {'foo': message, 'bar': 'Value is required'}
+
     def test_dumping_object_attributes(self):
         MyData = namedtuple('MyData', ['foo', 'bar'])
         assert Object({'foo': String(), 'bar': Integer()})\
@@ -830,6 +853,22 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
             .dump(AttributeDummy(), context)
         assert foo_type.dump_context == context
         assert bar_type.dump_context == context
+
+    def test_dumping_inherited_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object(Type1, {'bar': Integer()})
+        Type3 = Object(Type2, {'baz': Boolean()})
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz'])
+        assert Type3.dump(MyData(foo='hello', bar=123, baz=True)) == \
+            {'foo': 'hello', 'bar': 123, 'baz': True}
+
+    def test_dumping_multiple_inherited_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': Integer()})
+        Type3 = Object([Type1, Type2], {'baz': Boolean()})
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz'])
+        assert Type3.dump(MyData(foo='hello', bar=123, baz=True)) == \
+            {'foo': 'hello', 'bar': 123, 'baz': True}
 
 
 class TestOptional:
