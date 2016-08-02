@@ -573,9 +573,10 @@ class Field(object):
 
 
 class ConstantField(Field):
-    """Field that always equals to given value.
+    """Field that always serializes to given value and does not deserialize.
 
     :param Type field_type: Field type.
+    :param value: Value constant for this field.
     """
     def __init__(self, field_type, value):
         super(ConstantField, self).__init__(field_type)
@@ -675,10 +676,11 @@ class Object(Type):
     The way values are obtained during serialization is determined by type of
     field object in :attr:`~Object.fields` mapping (see :class:`ConstantField`,
     :class:`AttributeField`, :class:`MethodField` for details). You can specify
-    either :class:`Field` object or a :class:`Type` object. In later case,
-    :class:`Type` will be automatically wrapped with a default field type, which
-    is controlled by :attr:`~Object.default_field_type` constructor argument.
-
+    either :class:`Field` object, a :class:`Type` object or any other value.
+    In case of :class:`Type`, it will be automatically wrapped with a default
+    field type, which is controlled by :attr:`~Object.default_field_type`
+    constructor argument.
+    In case of any other value it will be transformed into :class:`ConstantField`.
 
     Example: ::
 
@@ -694,8 +696,11 @@ class Object(Type):
         PersonType.load({'name': 'John', 'age': 42})
         # => Person(name='John', age=42)
 
-    :param dict fields: Mapping of object field names to :class:`Type` or
-        :class:`Field` objects.
+    :param base_or_fields: Either :class:`Object` instance or fields (See
+        `fields` argument). In case of fields, the actual fields argument should
+        not be specified.
+    :param fields: List of name-to-value tuples or mapping of object field names to
+        :class:`Type`, :class:`Field` objects or constant values.
     :param callable contructor: Deserialized value constructor. Constructor
         should take all fields values as keyword arguments.
     :param Field default_field_type: Default field type to use for fields defined
@@ -703,6 +708,10 @@ class Object(Type):
     :param bool allow_extra_fields: If False, it will raise
         :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
         deserialization. If True, will ignore all extra fields.
+    :param list only: List of field names to include in this object. All other
+        fields (own or inherited) won't be used.
+    :param list exclude: List of field names to exclude from this object.
+        All other fields (own or inherited) will be included.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
 
@@ -711,17 +720,64 @@ class Object(Type):
         'unknown': 'Unknown field',
     }
 
-    def __init__(self, fields, constructor=dict,
+    def __init__(self, bases_or_fields=None, fields=None, constructor=dict,
                  default_field_type=AttributeField,
-                 allow_extra_fields=True,
+                 allow_extra_fields=True, only=None, exclude=None,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
-        self.fields = dict([
-            (name, field if isinstance(field, Field) else default_field_type(field))
-            for name, field in iteritems(fields)
-        ])
+        if bases_or_fields is None and fields is None:
+            raise ValueError('No base and/or fields are specified')
+        if isinstance(bases_or_fields, Object):
+            self.bases = [bases_or_fields]
+        if is_list(bases_or_fields) and \
+                all([isinstance(base, Object) for base in bases_or_fields]):
+            self.bases = bases_or_fields
+        elif is_list(bases_or_fields) or is_dict(bases_or_fields):
+            if fields is None:
+                self.bases = None
+                fields = bases_or_fields
+            else:
+                raise ValueError('Unknown base object type: %r' % bases_or_fields)
+
+        self._fields = [
+            (name, self._normalize_field(field, default_field_type))
+            for name, field in (iteritems(fields) if is_dict(fields) else fields)
+        ]
+        self.__fields = None
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
+        self.only = only
+        self.exclude = exclude
+
+    def _normalize_field(self, value, default_field_type):
+        if isinstance(value, Field):
+            return value
+        if isinstance(value, Type):
+            return default_field_type(value)
+        return ConstantField(Any(), value)
+
+    # Resolved at time of usage
+    @property
+    def fields(self):
+        if self.__fields is None:
+            fields = []
+            if self.bases is not None:
+                for base in self.bases:
+                    fields += base.fields
+
+            fields += self._fields
+
+            if self.only is not None:
+                fields = [(name, field) for name, field in fields
+                          if name in self.only]
+
+            if self.exclude is not None:
+                fields = [(name, field) for name, field in fields
+                          if name not in self.exclude]
+
+            self.__fields = fields
+
+        return self.__fields
 
     def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -732,7 +788,8 @@ class Object(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for name, field in iteritems(self.fields):
+
+        for name, field in self.fields:
             try:
                 loaded = field.load(name, data, *args, **kwargs)
                 if loaded != MISSING:
@@ -741,8 +798,9 @@ class Object(Type):
                 errors_builder.add_error(name, ve.messages)
 
         if not self.allow_extra_fields:
+            field_names = [name for name, _ in self.fields]
             for name in data:
-                if name not in self.fields:
+                if name not in field_names:
                     errors_builder.add_error(name, self._error_messages['unknown'])
 
         errors_builder.raise_errors()
@@ -755,7 +813,8 @@ class Object(Type):
 
         errors_builder = ValidationErrorBuilder()
         result = {}
-        for name, field in iteritems(self.fields):
+
+        for name, field in self.fields:
             try:
                 dumped = field.dump(name, obj, *args, **kwargs)
                 if dumped != MISSING:
