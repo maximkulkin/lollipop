@@ -537,7 +537,7 @@ class Dict(Type):
         return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
-class Field(object):
+class Field(ErrorMessagesMixin):
     """Base class for describing :class:`Object` fields. Defines a way to access
     object fields during serialization/deserialization. Usually it extracts data to
     serialize/deserialize and call `self.field_type.load()` to do data
@@ -545,8 +545,8 @@ class Field(object):
 
     :param Type field_type: Field type.
     """
-    def __init__(self, field_type):
-        super(Field, self).__init__()
+    def __init__(self, field_type, *args, **kwargs):
+        super(Field, self).__init__(*args, **kwargs)
         self.field_type = field_type
 
     def _get_value(self, name, obj, context=None):
@@ -578,8 +578,8 @@ class ConstantField(Field):
     :param Type field_type: Field type.
     :param value: Value constant for this field.
     """
-    def __init__(self, field_type, value):
-        super(ConstantField, self).__init__(field_type)
+    def __init__(self, field_type, value, *args, **kwargs):
+        super(ConstantField, self).__init__(field_type, *args, **kwargs)
         self.value = value
 
     def _get_value(self, name, obj, *args, **kwargs):
@@ -593,8 +593,8 @@ class AttributeField(Field):
     :param str attribute: Use given attribute name instead of field name
         defined in object type.
     """
-    def __init__(self, field_type, attribute=None):
-        super(AttributeField, self).__init__(field_type)
+    def __init__(self, field_type, attribute=None, *args, **kwargs):
+        super(AttributeField, self).__init__(field_type, *args, **kwargs)
         self.attribute = attribute
 
     def _get_value(self, name, obj, *args, **kwargs):
@@ -626,8 +626,8 @@ class MethodField(Field):
     :param Type field_type: Field type.
     :param str method: Method name. Method should not take any arguments.
     """
-    def __init__(self, field_type, method):
-        super(MethodField, self).__init__(field_type)
+    def __init__(self, field_type, method, *args, **kwargs):
+        super(MethodField, self).__init__(field_type, *args, **kwargs)
         self.method = method
 
     def _get_value(self, name, obj, context=None):
@@ -662,8 +662,8 @@ class FunctionField(Field):
     :param callable function: Function that takes source object and returns
         field value.
     """
-    def __init__(self, field_type, function):
-        super(FunctionField, self).__init__(field_type)
+    def __init__(self, field_type, function, *args, **kwargs):
+        super(FunctionField, self).__init__(field_type, *args, **kwargs)
         self.function = function
 
     def _get_value(self, name, obj, context=None):
