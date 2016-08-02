@@ -831,6 +831,20 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
             Type3.load({'foo': 'hello', 'baz': True})
         assert exc_info.value.messages == {'foo': message, 'bar': 'Value is required'}
 
+    def test_loading_only_specified_fields(self):
+        Type1 = Object({'foo': String(), 'bar': String()})
+        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
+                       only=['foo', 'baz'])
+        assert Type2.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == {'foo': 'hello', 'baz': 123}
+
+    def test_loading_all_but_specified_fields(self):
+        Type1 = Object({'foo': String(), 'bar': String()})
+        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
+                       exclude=['foo', 'baz'])
+        assert Type2.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == {'bar': 'goodbye', 'bam': 456}
+
     def test_dumping_object_attributes(self):
         MyData = namedtuple('MyData', ['foo', 'bar'])
         assert Object({'foo': String(), 'bar': Integer()})\
@@ -869,6 +883,22 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         MyData = namedtuple('MyData', ['foo', 'bar', 'baz'])
         assert Type3.dump(MyData(foo='hello', bar=123, baz=True)) == \
             {'foo': 'hello', 'bar': 123, 'baz': True}
+
+    def test_dumping_only_specified_fields(self):
+        Type1 = Object({'foo': String(), 'bar': String()})
+        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
+                       only=['foo', 'baz'])
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
+        assert Type2.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'foo': 'hello', 'baz': 123}
+
+    def test_dumping_all_but_specified_fields(self):
+        Type1 = Object({'foo': String(), 'bar': String()})
+        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
+                       exclude=['foo', 'baz'])
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
+        assert Type2.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'bar': 'goodbye', 'bam': 456}
 
 
 class TestOptional:

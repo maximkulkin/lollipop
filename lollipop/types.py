@@ -706,6 +706,10 @@ class Object(Type):
     :param bool allow_extra_fields: If False, it will raise
         :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
         deserialization. If True, will ignore all extra fields.
+    :param list only: List of field names to include in this object. All other
+        fields (own or inherited) won't be used.
+    :param list exclude: List of field names to exclude from this object.
+        All other fields (own or inherited) will be included.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
 
@@ -716,7 +720,7 @@ class Object(Type):
 
     def __init__(self, bases_or_fields=None, fields=None, constructor=dict,
                  default_field_type=AttributeField,
-                 allow_extra_fields=True,
+                 allow_extra_fields=True, only=None, exclude=None,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
         if bases_or_fields is None and fields is None:
@@ -740,6 +744,8 @@ class Object(Type):
         self.__fields = None
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
+        self.only = only
+        self.exclude = exclude
 
     def _normalize_field(self, value, default_field_type):
         if isinstance(value, Field):
@@ -756,6 +762,14 @@ class Object(Type):
                     fields += base.fields
 
             fields += self._fields
+
+            if self.only is not None:
+                fields = [(name, field) for name, field in fields
+                          if name in self.only]
+
+            if self.exclude is not None:
+                fields = [(name, field) for name, field in fields
+                          if name not in self.exclude]
 
             self.__fields = fields
 
