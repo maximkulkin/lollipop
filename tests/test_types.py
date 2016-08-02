@@ -900,6 +900,10 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert Type2.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
             {'bar': 'goodbye', 'bam': 456}
 
+    def test_shortcut_for_specifying_constant_fields(self):
+        MyType = Object({'foo': 'hello'})
+        assert MyType.dump({}) == {'foo': 'hello'}
+
 
 class TestOptional:
     def test_loading_value_calls_load_of_inner_type(self):

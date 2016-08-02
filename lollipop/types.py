@@ -573,9 +573,10 @@ class Field(object):
 
 
 class ConstantField(Field):
-    """Field that always equals to given value.
+    """Field that always serializes to given value and does not deserialize.
 
     :param Type field_type: Field type.
+    :param value: Value constant for this field.
     """
     def __init__(self, field_type, value):
         super(ConstantField, self).__init__(field_type)
@@ -675,10 +676,11 @@ class Object(Type):
     The way values are obtained during serialization is determined by type of
     field object in :attr:`~Object.fields` mapping (see :class:`ConstantField`,
     :class:`AttributeField`, :class:`MethodField` for details). You can specify
-    either :class:`Field` object or a :class:`Type` object. In later case,
-    :class:`Type` will be automatically wrapped with a default field type, which
-    is controlled by :attr:`~Object.default_field_type` constructor argument.
-
+    either :class:`Field` object, a :class:`Type` object or any other value.
+    In case of :class:`Type`, it will be automatically wrapped with a default
+    field type, which is controlled by :attr:`~Object.default_field_type`
+    constructor argument.
+    In case of any other value it will be transformed into :class:`ConstantField`.
 
     Example: ::
 
@@ -750,7 +752,9 @@ class Object(Type):
     def _normalize_field(self, value, default_field_type):
         if isinstance(value, Field):
             return value
-        return default_field_type(value)
+        if isinstance(value, Type):
+            return default_field_type(value)
+        return ConstantField(Any(), value)
 
     # Resolved at time of usage
     @property
