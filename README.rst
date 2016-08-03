@@ -2,6 +2,10 @@
 lollipop
 ********
 
+.. image:: https://img.shields.io/badge/license-MIT-blue.svg
+    :target: https://github.com/maximkulkin/lollipop/blob/master/LICENSE
+    :alt: License: MIT
+
 .. image:: https://travis-ci.org/maximkulkin/lollipop.svg
     :target: https://travis-ci.org/maximkulkin/lollipop
     :alt: Build Status
