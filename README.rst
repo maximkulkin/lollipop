@@ -2,6 +2,10 @@
 lollipop
 ********
 
+.. image:: https://img.shields.io/badge/license-MIT-blue.svg
+    :target: https://github.com/maximkulkin/lollipop/blob/master/LICENSE
+    :alt: License: MIT
+
 .. image:: https://travis-ci.org/maximkulkin/lollipop.svg
     :target: https://travis-ci.org/maximkulkin/lollipop
     :alt: Build Status
@@ -28,27 +32,32 @@ Data serialization and validation library
 
     BookType = Object({
         'title': String(),
-        'pubish_date': Date(),
+        'publish_date': Date(),
         'author': PersonType,
     }, constructor=Book)
 
     BookType.dump(
-        Book(title='Moby-Dick',
-             publish_date=date(1854, 11, 14),
-             author=Person(name='Herman Melville'))
+        Book(
+            title='Harry Potter and the Philosopher\'s Stone',
+            publish_date=date(1997, 06, 26),
+            author=Person(name='J. K. Rowling')
+        )
     )
-    # => {'title': 'Moby-Dick',
-    #     'publish_date': '1854-11-14',
-    #     'author': {
-    #         'name': 'Herman Melville'
-    #     }}
+    # => {'title': 'Harry Potter and the Philosopher\'s Stone',
+    #     'publish_date': '1997-06-26',
+    #     'author': {'name': 'J. K. Rowling'}}
 
-    BookType.load({'title': 'Moby-Dick', 'publish_date': '1854-11-14',
-                   'author': {'name': 'Herman Melville'}})
-    # => Book(title='Moby-Dick', publish_date=date(1854, 11, 14),
-    #         author=User(name='Herman Melville'))
+    BookType.load({'title': 'Harry Potter and the Philosopher\'s Stone',
+                   'publish_date': '1997-06-26',
+                   'author': {'name': 'J. K. Rowling'}})
+    # => Book(title='Harry Potter and the Philosopher\'s Stone',
+    #         publish_date=date(1997, 06, 26),
+    #         author=User(name='J. K. Rowling'))
 
-    BookType.validate({'title': 'Moby-Dick', 'author': {'name': ''}})
+    BookType.validate({
+        'title': 'Harry Potter and the Philosopher\'s Stone',
+        'author': {'name': ''},
+    })
     # => {'author': {'name': 'Length should be at least 1'},
     #     'publish_date': 'Value is required'}
 
