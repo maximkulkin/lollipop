@@ -2,17 +2,21 @@
 lollipop
 ********
 
-.. image:: https://img.shields.io/badge/license-MIT-blue.svg
+.. image:: https://img.shields.io/pypi/l/lollipop.svg
     :target: https://github.com/maximkulkin/lollipop/blob/master/LICENSE
     :alt: License: MIT
 
-.. image:: https://travis-ci.org/maximkulkin/lollipop.svg
+.. image:: https://img.shields.io/travis/maximkulkin/lollipop.svg
     :target: https://travis-ci.org/maximkulkin/lollipop
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/lollipop/badge/?version=latest
     :target: http://lollipop.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+
+.. image:: https://img.shields.io/pypi/v/lollipop.svg
+    :target: https://pypi.python.org/pypi/lollipop
+    :alt: PyPI
 
 Data serialization and validation library
 
