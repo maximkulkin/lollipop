@@ -15,6 +15,9 @@ __all__ = [
     'List',
     'Tuple',
     'Dict',
+    'OneOf',
+    'type_name_hint',
+    'dict_value_hint',
     'Field',
     'ConstantField',
     'AttributeField',
@@ -439,6 +442,121 @@ class Tuple(Type):
         )
 
 
+def type_name_hint(data):
+    """Returns type name of given value.
+
+    To be used as a type hint in :class:`OneOf`.
+    """
+    return data.__class__.__name__
+
+
+def dict_value_hint(key, mapper=None):
+    """Returns a function that takes a dictionary and returns value of
+    particular key. The returned value can be optionally processed by `mapper`
+    function.
+
+    To be used as a type hint in :class:`OneOf`.
+    """
+    if mapper is None:
+        mapper = lambda x: x
+
+    def hinter(data):
+        return mapper(data.get(key))
+
+    return hinter
+
+
+class OneOf(Type):
+    """
+
+    Example: ::
+
+        class Foo(object):
+            def __init__(self, foo):
+                self.foo = foo
+
+        class Bar(object):
+            def __init__(self, bar):
+                self.bar = bar
+
+        FooType = Object({'foo': String()}, constructor=Foo)
+        BarType = Object({'bar': Integer()}, constructor=Bar)
+
+        def object_with_type(name, subject_type):
+            return Object(subject_type, {'type': name},
+                          constructor=subject_type.constructor)
+
+        FooBarType = OneOf({
+            'Foo': object_with_type('Foo', FooType),
+            'Bar': object_with_type('Bar', BarType),
+        }, dump_hint=type_name_hint, load_hint=dict_value_hint('type'))
+
+        List(FooBarType).dump([Foo(foo='hello'), Bar(bar=123)])
+        # => [{'type': 'Foo', 'foo': 'hello'}, {'type': 'Bar', 'bar': 123}]
+
+        List(FooBarType).load([{'type': 'Foo', 'foo': 'hello'},
+                               {'type': 'Bar', 'bar': 123}])
+        # => [Foo(foo='hello'), Bar(bar=123)]
+    """
+
+    default_error_messages = {
+        'invalid': 'Invalid data',
+    }
+
+    def __init__(self, types,
+                 load_hint=type_name_hint,
+                 dump_hint=type_name_hint,
+                 *args, **kwargs):
+        super(OneOf, self).__init__(*args, **kwargs)
+        self.types = types
+        self.load_hint = load_hint
+        self.dump_hint = dump_hint
+
+    def load(self, data, *args, **kwargs):
+        if data is MISSING or data is None:
+            self._fail('required')
+
+        if is_dict(self.types) and self.load_hint:
+            type_id = self.load_hint(data)
+            if type_id not in self.types:
+                self._fail('invalid')
+
+            item_type = self.types[type_id]
+            result = item_type.load(data, *args, **kwargs)
+            return super(OneOf, self).load(result, *args, **kwargs)
+        else:
+            for item_type in (self.types.values() if is_dict(self.types) else self.types):
+                try:
+                    result = item_type.load(data, *args, **kwargs)
+                    return super(OneOf, self).load(result, *args, **kwargs)
+                except ValidationError as ve:
+                    pass
+
+            self._fail('invalid')
+
+    def dump(self, data, *args, **kwargs):
+        if data is MISSING or data is None:
+            self._fail('required')
+
+        if is_dict(self.types) and self.dump_hint:
+            type_id = self.dump_hint(data)
+            if type_id not in self.types:
+                self._fail('invalid')
+
+            item_type = self.types[type_id]
+            result = item_type.dump(data, *args, **kwargs)
+            return super(OneOf, self).dump(result, *args, **kwargs)
+        else:
+            for item_type in (self.types.values() if is_dict(self.types) else self.types):
+                try:
+                    result = item_type.dump(data, *args, **kwargs)
+                    return super(OneOf, self).dump(result, *args, **kwargs)
+                except ValidationError as ve:
+                    pass
+
+            self._fail('invalid')
+
+
 class DictWithDefault(object):
     def __init__(self, values={}, default=None):
         super(DictWithDefault, self).__init__()
@@ -537,7 +655,7 @@ class Dict(Type):
         return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
-class Field(object):
+class Field(ErrorMessagesMixin):
     """Base class for describing :class:`Object` fields. Defines a way to access
     object fields during serialization/deserialization. Usually it extracts data to
     serialize/deserialize and call `self.field_type.load()` to do data
@@ -545,8 +663,8 @@ class Field(object):
 
     :param Type field_type: Field type.
     """
-    def __init__(self, field_type):
-        super(Field, self).__init__()
+    def __init__(self, field_type, *args, **kwargs):
+        super(Field, self).__init__(*args, **kwargs)
         self.field_type = field_type
 
     def _get_value(self, name, obj, context=None):
@@ -578,12 +696,29 @@ class ConstantField(Field):
     :param Type field_type: Field type.
     :param value: Value constant for this field.
     """
-    def __init__(self, field_type, value):
-        super(ConstantField, self).__init__(field_type)
+
+    default_error_messages = {
+        'required': 'Value is required',
+        'value': 'Value is incorrect',
+    }
+
+    def __init__(self, field_type, value, *args, **kwargs):
+        super(ConstantField, self).__init__(field_type, *args, **kwargs)
         self.value = value
 
     def _get_value(self, name, obj, *args, **kwargs):
         return self.value
+
+    def load(self, name, data, *args, **kwargs):
+        value = data.get(name, MISSING)
+        if value is MISSING or value is None:
+            self._fail('required')
+
+        result = self.field_type.load(value)
+        if result != MISSING and result != self.value:
+            self._fail('value')
+
+        return MISSING
 
 
 class AttributeField(Field):
@@ -593,8 +728,8 @@ class AttributeField(Field):
     :param str attribute: Use given attribute name instead of field name
         defined in object type.
     """
-    def __init__(self, field_type, attribute=None):
-        super(AttributeField, self).__init__(field_type)
+    def __init__(self, field_type, attribute=None, *args, **kwargs):
+        super(AttributeField, self).__init__(field_type, *args, **kwargs)
         self.attribute = attribute
 
     def _get_value(self, name, obj, *args, **kwargs):
@@ -626,8 +761,8 @@ class MethodField(Field):
     :param Type field_type: Field type.
     :param str method: Method name. Method should not take any arguments.
     """
-    def __init__(self, field_type, method):
-        super(MethodField, self).__init__(field_type)
+    def __init__(self, field_type, method, *args, **kwargs):
+        super(MethodField, self).__init__(field_type, *args, **kwargs)
         self.method = method
 
     def _get_value(self, name, obj, context=None):
@@ -662,8 +797,8 @@ class FunctionField(Field):
     :param callable function: Function that takes source object and returns
         field value.
     """
-    def __init__(self, field_type, function):
-        super(FunctionField, self).__init__(field_type)
+    def __init__(self, field_type, function, *args, **kwargs):
+        super(FunctionField, self).__init__(field_type, *args, **kwargs)
         self.function = function
 
     def _get_value(self, name, obj, context=None):
