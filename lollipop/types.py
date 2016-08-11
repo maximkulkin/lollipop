@@ -11,6 +11,7 @@ __all__ = [
     'Any',
     'String',
     'Integer',
+    'Float',
     'Boolean',
     'List',
     'Tuple',
