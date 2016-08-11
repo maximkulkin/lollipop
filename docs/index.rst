@@ -12,6 +12,8 @@ Guide
 
     install
     quickstart
+    objects
+    validation
     custom_types
 
 API Reference

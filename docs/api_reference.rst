@@ -6,11 +6,17 @@ API Reference
 
 .. module:: lollipop
 
+Data
+====
+
+.. autodata:: lollipop.types.MISSING
+
 Types
 =====
 
 .. automodule:: lollipop.types
     :members:
+    :exclude-members: MISSING
 
 Validators
 ==========
