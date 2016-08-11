@@ -385,10 +385,10 @@ class Tuple(Type):
     :param list item_types: List of item types.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
-    default_error_messages = dict(Type.default_error_messages, **{
+    default_error_messages = {
         'invalid': 'Value should be list',
         'invalid_length': 'Value length should be {expected_length}',
-    })
+    }
 
     def __init__(self, item_types, **kwargs):
         super(Tuple, self).__init__(**kwargs)
