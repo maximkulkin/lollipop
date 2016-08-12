@@ -4,6 +4,8 @@
 lollipop: object serialization and validation
 *********************************************
 
+Release version |version|. (:ref:`Changelog <changelog>`)
+
 Guide
 =====
 
