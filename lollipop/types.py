@@ -20,11 +20,11 @@ __all__ = [
     'type_name_hint',
     'dict_value_hint',
     'Field',
-    'ConstantField',
     'AttributeField',
     'MethodField',
     'FunctionField',
     'Object',
+    'Constant',
     'Optional',
     'LoadOnly',
     'DumpOnly',
@@ -656,6 +656,38 @@ class Dict(Type):
         return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
+class Constant(Type):
+    """Type that always serializes to given value and
+    checks this value on deserialize.
+
+    :param value: Value constant for this field.
+    :param Type field_type: Field type.
+    """
+
+    default_error_messages = {
+        'required': 'Value is required',
+        'value': 'Value is incorrect',
+    }
+
+    def __init__(self, value, field_type=Any(), *args, **kwargs):
+        super(Constant, self).__init__(*args, **kwargs)
+        self.value = value
+        self.field_type = field_type
+
+    def load(self, data, *args, **kwargs):
+        value = self.field_type.load(data)
+        if value is MISSING or value is None:
+            self._fail('required')
+
+        if value != self.value:
+            self._fail('value')
+
+        return MISSING
+
+    def dump(self, value, *args, **kwargs):
+        return self.field_type.dump(self.value, *args, **kwargs)
+
+
 class Field(ErrorMessagesMixin):
     """Base class for describing :class:`Object` fields. Defines a way to access
     object fields during serialization/deserialization. Usually it extracts data to
@@ -689,37 +721,6 @@ class Field(ErrorMessagesMixin):
         """
         value = self._get_value(name, obj)
         return self.field_type.dump(value, *args, **kwargs)
-
-
-class ConstantField(Field):
-    """Field that always serializes to given value and does not deserialize.
-
-    :param Type field_type: Field type.
-    :param value: Value constant for this field.
-    """
-
-    default_error_messages = {
-        'required': 'Value is required',
-        'value': 'Value is incorrect',
-    }
-
-    def __init__(self, field_type, value, *args, **kwargs):
-        super(ConstantField, self).__init__(field_type, *args, **kwargs)
-        self.value = value
-
-    def _get_value(self, name, obj, *args, **kwargs):
-        return self.value
-
-    def load(self, name, data, *args, **kwargs):
-        value = data.get(name, MISSING)
-        if value is MISSING or value is None:
-            self._fail('required')
-
-        result = self.field_type.load(value)
-        if result != MISSING and result != self.value:
-            self._fail('value')
-
-        return MISSING
 
 
 class AttributeField(Field):
@@ -810,13 +811,13 @@ class Object(Type):
     """An object type. Serializes to a dict of field names to serialized field
     values. Parametrized with field names to types mapping.
     The way values are obtained during serialization is determined by type of
-    field object in :attr:`~Object.fields` mapping (see :class:`ConstantField`,
-    :class:`AttributeField`, :class:`MethodField` for details). You can specify
-    either :class:`Field` object, a :class:`Type` object or any other value.
+    field object in :attr:`~Object.fields` mapping (see :class:`AttributeField`,
+    :class:`MethodField` for details). You can specify either :class:`Field` object,
+    a :class:`Type` object or any other value.
     In case of :class:`Type`, it will be automatically wrapped with a default
     field type, which is controlled by :attr:`~Object.default_field_type`
     constructor argument.
-    In case of any other value it will be transformed into :class:`ConstantField`.
+    In case of any other value it will be transformed into :class:`Constant`.
 
     Example: ::
 
@@ -888,9 +889,9 @@ class Object(Type):
     def _normalize_field(self, value, default_field_type):
         if isinstance(value, Field):
             return value
-        if isinstance(value, Type):
-            return default_field_type(value)
-        return ConstantField(Any(), value)
+        if not isinstance(value, Type):
+            value = Constant(value)
+        return default_field_type(value)
 
     # Resolved at time of usage
     @property

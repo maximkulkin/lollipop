@@ -92,18 +92,17 @@ name as the field name. You can change the name of attribute to extract value fr
     PersonType.dump(Person('John Doe'))  # => {'name': 'John Doe'}
 
 Other useful instances are :class:`~lollipop.types.MethodField` which calls given
-method on the object to get value instead of getting attribute,
+method on the object to get value instead of getting attribute or
 :class:`~lollipop.types.FunctionField` which uses given function on a serialized
-object to get value, :class:`~lollipop.types.ConstantField` which always serializes
-to given constant value. For last one there is another shortcut: if you provide a
+object to get value. For last one there is another shortcut: if you provide a
 value for a field which is not :class:`~lollipop.types.Type` and not
 :class:`~lollipop.types.Field` then it will be wrapped with a
-:class:`~lollipop.types.ConstantField`.
+:class:`~lollipop.types.Constant` and then into default field type.
 
 ::
 
     # Following lines are equivalent
-    Object({'answer': ConstantField(Any(), 42)}).dump(object())  # => {'answer': 42}
+    Object({'answer': AttributeField(Constant(42))}).dump(object())  # => {'answer': 42}
     Object({'answer': 42}).dump(object())  # => {'answer': 42}
 
 

@@ -3,7 +3,7 @@ from functools import partial
 import datetime
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
-    Field, AttributeField, MethodField, FunctionField, ConstantField, Object, \
+    Field, AttributeField, MethodField, FunctionField, Constant, Object, \
     Optional, LoadOnly, DumpOnly, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
@@ -805,36 +805,34 @@ class TestFunctionField:
         assert field_type.dump_context == context
 
 
-class TestConstantField:
+class TestConstant:
     def test_loading_always_returns_missing(self):
-        assert ConstantField(SpyType(), 42)\
-            .load('foo', {'foo': 42, 'bar': 123}) == MISSING
+        assert Constant(42).load(42) == MISSING
 
     def test_loading_raises_ValidationError_if_loaded_value_is_not_a_constant_value_specified(self):
         with pytest.raises(ValidationError) as exc_info:
-            ConstantField(SpyType(), 42).load('foo', {'foo': 43, 'bar': 123})
-        assert exc_info.value.messages == ConstantField.default_error_messages['value']
+            Constant(42).load(43)
+        assert exc_info.value.messages == Constant.default_error_messages['value']
 
     def test_loading_value_with_inner_type_before_checking_value_correctness(self):
         inner_type = SpyType(load_result=42)
-        assert ConstantField(inner_type, 42)\
-            .load('foo', {'foo': 44, 'bar': 123}) == MISSING
+        assert Constant(42, inner_type).load(44) == MISSING
         assert inner_type.loaded == 44
 
     def test_customizing_error_message_when_value_is_incorrect(self):
         message = 'Bad value'
         with pytest.raises(ValidationError) as exc_info:
-            ConstantField(SpyType(), 42, error_messages={'value': message})\
-                .load('foo', {'foo': 43, 'bar': 123})
+            Constant(42, error_messages={'value': message}).load(43)
         assert exc_info.value.messages == message
 
     def test_dumping_always_returns_given_value(self):
-        assert ConstantField(SpyType(), 42)\
-            .dump('foo', AttributeDummy()) == 42
+        assert Constant(42).dump(43) == 42
+        assert Constant(42).dump(MISSING) == 42
+        assert Constant(42).dump(None) == 42
 
     def test_dumping_given_constant_with_field_type(self):
         field_type = SpyType()
-        ConstantField(field_type, 42).dump('foo', AttributeDummy())
+        Constant(42, field_type).dump(45)
         assert field_type.dumped == 42
 
 
