@@ -65,6 +65,21 @@ class SpyType(Type):
         return self.dump_result or value
 
 
+class SpyTypeWithLoadInto(SpyType):
+    def __init__(self, load_into_result=None, *args, **kwargs):
+        super(SpyTypeWithLoadInto, self).__init__(*args, **kwargs)
+        self.loaded_into = None
+        self.load_into_called = False
+        self.load_into_context = None
+        self.load_into_result = load_into_result
+
+    def load_into(self, obj, data, context=None, *args, **kwargs):
+        self.loaded_into = (obj, data)
+        self.load_into_called = True
+        self.load_into_context = context
+        return self.load_into_result or data
+
+
 class RequiredTestsMixin:
     """Mixin that adds tests for reacting to missing/None values during load/dump.
     Host class should define `tested_type` properties.
@@ -694,11 +709,32 @@ class TestOneOf:
 
 
 class AttributeDummy:
-    foo = 'hello'
-    bar = 123
+    def __init__(self, foo='hello', bar=123):
+        self.foo = foo
+        self.bar = bar
 
 
 class TestAttributeField:
+    def test_getting_value_returns_value_of_given_object_attribute(self):
+        obj = AttributeDummy()
+        assert AttributeField(Any()).get_value('foo', obj) == obj.foo
+
+    def test_getting_value_returns_value_of_configured_object_attribute(self):
+        obj = AttributeDummy()
+        assert AttributeField(Any(), attribute='bar')\
+            .get_value('foo', obj) == obj.bar
+
+    def test_setting_value_sets_given_value_to_given_object_attribute(self):
+        obj = AttributeDummy()
+        AttributeField(Any()).set_value('foo', obj, 'goodbye')
+        assert obj.foo == 'goodbye'
+
+    def test_setting_value_sets_given_value_to_configured_object_attribute(self):
+        obj = AttributeDummy(foo='hello')
+        AttributeField(Any(), attribute='bar').set_value('foo', obj, 'goodbye')
+        assert obj.foo == 'hello'
+        assert obj.bar == 'goodbye'
+
     def test_loading_value_with_field_type(self):
         field_type = SpyType()
         assert AttributeField(field_type)\
@@ -740,19 +776,145 @@ class TestAttributeField:
 
 
 class MethodDummy:
+    def __init__(self, foo='hello', bar=123):
+        self._foo = foo
+        self._bar = bar
+
     def foo(self):
-        return 'hello'
+        return self._foo
+
+    def set_foo(self, value):
+        self._foo = value
 
     def bar(self):
-        return 123
+        return self._bar
+
+    def set_bar(self, value):
+        self._bar = value
 
     baz = 'goodbye'
 
 
 class TestMethodField:
-    def test_loading_always_returns_missing(self):
-        assert MethodField(SpyType(), 'foo')\
-            .load('foo', {'foo': 'hello', 'bar': 123}) == MISSING
+    def test_get_value_returns_result_of_calling_configured_method_on_object(self):
+        obj = MethodDummy()
+        assert MethodField(Any(), get='foo').get_value('quux', obj) == obj.foo()
+
+    def test_get_value_returns_MISSING_if_get_method_is_not_specified(self):
+        obj = MethodDummy()
+        assert MethodField(Any()).get_value('quux', obj) == MISSING
+
+    def test_get_value_raises_ValueError_if_method_does_not_exist(self):
+        with pytest.raises(ValueError):
+            MethodField(Any(), 'unknown').get_value('quux', MethodDummy())
+
+    def test_get_value_raises_ValueError_if_property_is_not_callable(self):
+        with pytest.raises(ValueError):
+            MethodField(Any(), 'baz').get_value('quux', MethodDummy())
+
+    def test_get_value_passes_context_to_method(self):
+        class MyDummy(MethodDummy):
+            def get_bam(self, context):
+                self.get_context = context
+
+        obj = MyDummy()
+        context = object()
+
+        MethodField(Any(), 'get_bam').get_value('quux', obj, context=context)
+        assert obj.get_context is context
+
+    def test_set_value_calls_configure_method_on_object(self):
+        obj = MethodDummy()
+        MethodField(Any(), set='set_foo').set_value('quux', obj, 'goodbye')
+        assert obj.foo() == 'goodbye'
+
+    def test_set_value_does_not_do_anything_if_set_method_is_not_specified(self):
+        obj = MethodDummy(foo='hello', bar=123)
+        MethodField(Any()).set_value('quux', obj, 'goodbye')
+        assert obj.foo() == 'hello'
+        assert obj.bar() == 123
+
+    def test_set_value_raises_ValueError_if_method_does_not_exist(self):
+        with pytest.raises(ValueError):
+            MethodField(Any(), set='unknown').set_value('quux', MethodDummy(), 'foo')
+
+    def test_set_value_raises_ValueError_if_property_is_not_callable(self):
+        with pytest.raises(ValueError):
+            MethodField(Any(), set='baz').set_value('quux', MethodDummy(), 'foo')
+
+    def test_set_value_passes_context_to_method(self):
+        class MyDummy(MethodDummy):
+            def set_bam(self, value, context):
+                self.set_value = value
+                self.set_context = context
+
+        obj = MyDummy()
+        context = object()
+        MethodField(Any(), set='set_bam')\
+            .set_value('quux', obj, 'hello', context=context)
+        assert obj.set_value == 'hello'
+        assert obj.set_context is context
+
+    def test_loading_value_with_field_type(self):
+        field_type = SpyType(load_result='goodbye')
+        assert MethodField(field_type, 'foo')\
+            .load('foo', {'foo': 'hello', 'bar': 123}) == 'goodbye'
+        assert field_type.loaded == 'hello'
+
+    def test_loading_value_returns_loaded_value(self):
+        field_type = SpyType()
+        assert MethodField(field_type, 'foo', 'set_foo')\
+            .load('foo', {'foo': 'hello', 'bar': 123}) == 'hello'
+
+    def test_loading_value_passes_context_to_field_types_load(self):
+        field_type = SpyType()
+        context = object()
+        MethodField(field_type, 'foo').load('foo', {'foo': 'hello', 'bar': 123},
+                                            context=context)
+        assert field_type.load_context is context
+
+    def test_loading_value_into_existing_object_calls_field_types_load_into(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyTypeWithLoadInto()
+        MethodField(field_type, 'foo', 'set_foo')\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded_into == ('hello', 'goodbye')
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_load_into_is_not_available(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyType()
+        MethodField(field_type, 'foo', 'set_foo')\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_old_value_is_None(self):
+        obj = MethodDummy(foo=None)
+        field_type = SpyTypeWithLoadInto()
+        MethodField(field_type, 'foo', 'set_foo')\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded_into is None
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_old_value_is_MISSING(self):
+        class MyDummy(MethodDummy):
+            def missing_field(self):
+                return MISSING
+
+        obj = MyDummy(foo=None)
+        field_type = SpyTypeWithLoadInto()
+        MethodField(field_type, 'missing_field', 'set_foo')\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+
+        assert field_type.loaded_into is None
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_passes_context_to_field_types_load_into(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyTypeWithLoadInto()
+        context = object()
+        MethodField(field_type, 'foo')\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123}, context=context)
+        assert field_type.load_into_context is context
 
     def test_dumping_result_of_given_objects_method(self):
         assert MethodField(SpyType(), 'foo')\
@@ -763,17 +925,17 @@ class TestMethodField:
         assert MethodField(field_type, 'foo').dump('foo', MethodDummy())
         assert field_type.dumped == MethodDummy().foo()
 
-    def test_dumping_result_of_a_different_obejcts_method(self):
-        assert MethodField(SpyType(), method='bar')\
+    def test_dumping_result_of_a_different_objects_method(self):
+        assert MethodField(SpyType(), get='bar')\
             .dump('foo', MethodDummy()) == MethodDummy().bar()
 
     def test_dumping_raises_ValueError_if_given_method_does_not_exist(self):
         with pytest.raises(ValueError):
-            MethodField(SpyType(), method='unknown').dump('bam', MethodDummy())
+            MethodField(SpyType(), get='unknown').dump('bam', MethodDummy())
 
     def test_dumping_raises_ValueError_if_given_method_is_not_callable(self):
         with pytest.raises(ValueError):
-            MethodField(SpyType(), method='baz').dump('foo', MethodDummy())
+            MethodField(SpyType(), get='baz').dump('foo', MethodDummy())
 
     def test_dumping_passes_context_to_field_type_dump(self):
         field_type = SpyType()
@@ -783,25 +945,151 @@ class TestMethodField:
 
 
 class TestFunctionField:
-    def test_loading_always_returns_missing(self):
-        assert FunctionField(SpyType(), lambda name, obj: getattr(obj, name))\
-            .load('foo', {'foo': 'hello', 'bar': 123}) == MISSING
+    def test_get_value_returns_result_of_calling_configured_function_with_object(self):
+        obj = MethodDummy()
+        assert FunctionField(Any(), get=lambda obj: obj.foo()+'abc')\
+            .get_value('quux', obj) == obj.foo()+'abc'
 
-    def test_dumping_result_of_function_call(self):
-        assert FunctionField(SpyType(), lambda name, obj: getattr(obj, name))\
-            .dump('foo', AttributeDummy()) == AttributeDummy().foo
+    def test_get_value_returns_MISSING_if_get_func_is_not_specified(self):
+        obj = MethodDummy()
+        assert FunctionField(Any()).get_value('quux', obj) == MISSING
+
+    def test_get_value_raises_ValueError_if_property_is_not_callable(self):
+        with pytest.raises(ValueError):
+            FunctionField(Any(), 'foo')
+
+    def test_get_value_passes_context_to_func(self):
+        class Spy:
+            def get_value(self, obj, context):
+                self.obj = obj
+                self.context = context
+
+        spy = Spy()
+        obj = MethodDummy()
+        context = object()
+
+        FunctionField(Any(), spy.get_value).get_value('quux', obj, context=context)
+
+        assert spy.obj is obj
+        assert spy.context is context
+
+    def test_set_value_calls_configure_method_on_object(self):
+        obj = MethodDummy()
+        FunctionField(Any(), set=lambda o, v: o.set_foo(v))\
+            .set_value('quux', obj, 'goodbye')
+        assert obj.foo() == 'goodbye'
+
+    def test_set_value_does_not_do_anything_if_set_func_is_not_specified(self):
+        obj = MethodDummy(foo='hello', bar=123)
+        FunctionField(Any()).set_value('quux', obj, 'goodbye')
+        assert obj.foo() == 'hello'
+        assert obj.bar() == 123
+
+    def test_set_value_raises_ValueError_if_property_is_not_callable(self):
+        with pytest.raises(ValueError):
+            FunctionField(Any(), set='baz').set_value('quux', MethodDummy(), 'foo')
+
+    def test_set_value_passes_context_to_func(self):
+        class Spy:
+            def set_bam(self, obj, value, context):
+                self.set_obj = obj
+                self.set_value = value
+                self.set_context = context
+
+        spy = Spy()
+        obj = MethodDummy()
+        context = object()
+
+        FunctionField(Any(), set=spy.set_bam)\
+            .set_value('quux', obj, 'hello', context=context)
+
+        assert spy.set_obj is obj
+        assert spy.set_value == 'hello'
+        assert spy.set_context is context
+
+    def test_loading_value_with_field_type(self):
+        field_type = SpyType(load_result='goodbye')
+        assert FunctionField(field_type, lambda obj: obj.foo)\
+            .load('foo', {'foo': 'hello', 'bar': 123}) == 'goodbye'
+        assert field_type.loaded == 'hello'
+
+    def test_loading_value_returns_loaded_value(self):
+        field_type = SpyType()
+        assert FunctionField(field_type, lambda obj: obj.foo)\
+            .load('foo', {'foo': 'hello', 'bar': 123}) == 'hello'
+
+    def test_loading_value_passes_context_to_field_types_load(self):
+        field_type = SpyType()
+        context = object()
+        FunctionField(field_type, lambda obj: obj.foo)\
+            .load('foo', {'foo': 'hello', 'bar': 123}, context=context)
+        assert field_type.load_context is context
+
+    def test_loading_value_into_existing_object_calls_field_types_load_into(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyTypeWithLoadInto()
+        FunctionField(field_type,
+                      lambda o: o.foo(),
+                      lambda o, v: o.set_foo(v))\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded_into == ('hello', 'goodbye')
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_load_into_is_not_available(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyType()
+        FunctionField(field_type, lambda o: o.foo(), lambda o, v: o.set_foo(v))\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_old_value_is_None(self):
+        obj = MethodDummy(foo=None)
+        field_type = SpyTypeWithLoadInto()
+        FunctionField(field_type, lambda o: o.foo(), lambda o, v: o.set_foo(v))\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+        assert field_type.loaded_into is None
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_calls_field_types_load_if_old_value_is_MISSING(self):
+        class MyDummy(MethodDummy):
+            def missing_field(self):
+                return MISSING
+
+        obj = MyDummy(foo=None)
+        field_type = SpyTypeWithLoadInto()
+        FunctionField(field_type, lambda o: o.missing_field(), lambda o, v: o.set_foo(v))\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123})
+
+        assert field_type.loaded_into is None
+        assert field_type.loaded == 'goodbye'
+
+    def test_loading_value_into_existing_object_passes_context_to_field_types_load_into(self):
+        obj = MethodDummy(foo='hello')
+        field_type = SpyTypeWithLoadInto()
+        context = object()
+        FunctionField(field_type, lambda o: o.foo(), lambda o, v: o.set_foo(v))\
+            .load_into(obj, 'foo', {'foo': 'goodbye', 'bar': 123}, context=context)
+        assert field_type.load_into_context is context
+
+    def test_dumping_result_of_given_function(self):
+        obj = MethodDummy()
+        assert FunctionField(SpyType(), lambda o: o.foo()+'abc')\
+            .dump('foo', obj) == obj.foo()+'abc'
 
     def test_dumping_result_of_objects_method_with_field_type(self):
         field_type = SpyType()
-        FunctionField(field_type, lambda name, obj: getattr(obj, name))\
-            .dump('foo', AttributeDummy())
-        assert field_type.dumped == AttributeDummy().foo
+        assert FunctionField(field_type, lambda o: 'goodbye')\
+            .dump('foo', MethodDummy())
+        assert field_type.dumped == 'goodbye'
+
+    def test_dumping_raises_ValueError_if_given_get_func_is_not_callable(self):
+        with pytest.raises(ValueError):
+            FunctionField(SpyType(), get='baz').dump('foo', MethodDummy())
 
     def test_dumping_passes_context_to_field_type_dump(self):
         field_type = SpyType()
         context = object()
-        FunctionField(field_type, lambda name, obj: getattr(obj, name))\
-            .dump('foo', AttributeDummy(), context)
+        FunctionField(field_type, lambda o: 'goodbye')\
+            .dump('foo', MethodDummy(), context)
         assert field_type.dump_context == context
 
 
@@ -979,6 +1267,260 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
                        exclude=['foo', 'baz'])
         assert Type2.load({'foo': 'hello', 'bar': 'goodbye',
                            'baz': 123, 'bam': 456}) == {'bar': 'goodbye', 'bam': 456}
+
+    def test_loading_values_into_existing_object(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String(), 'bar': Integer()})\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+        assert obj.foo == 'goodbye'
+        assert obj.bar == 456
+
+    def test_loading_values_into_existing_object_returns_that_object(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        assert obj is Object({'foo': String(), 'bar': Integer()})\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+    def test_loading_values_into_existing_object_passes_all_object_attributes_to_validators(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        validator = SpyValidator()
+        Object({'foo': String(), 'bar': Integer()}, validate=validator)\
+            .load_into(obj, {'foo': 'goodbye'})
+        assert validator.validated == {'foo': 'goodbye', 'bar': 123}
+
+    def test_loading_values_into_immutable_object_creates_a_copy(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        obj_type = Object({'foo': String(), 'bar': Integer()},
+                          constructor=AttributeDummy, immutable=True)
+        result = obj_type.load_into(obj, {'foo': 'goodbye'})
+        assert result is not obj
+        assert result.foo == 'goodbye'
+        assert result.bar == 123
+
+    def test_loading_values_into_immutable_object_does_not_modify_original_object(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        obj_type = Object({'foo': String(), 'bar': Integer()},
+                          constructor=AttributeDummy, immutable=True)
+        obj_type.load_into(obj, {'foo': 'goodbye'})
+        assert obj.foo == 'hello'
+        assert obj.bar == 123
+
+    def test_loading_values_into_nested_object_of_immutable_object_creates_copy_of_it_regardless_of_nested_objects_immutable_flag(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+            'bam': Boolean(),
+        }, constructor=Bar)
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo, immutable=True)
+
+        foo = Foo(123, Bar('hello', False))
+
+        result = FooType.load_into(foo, {'bar': {'baz': 'goodbye'}})
+
+        assert result is not foo
+        assert result.bar is not foo.bar
+
+    def test_loading_values_into_nested_object_of_immutable_object_does_not_modify_original_objects(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+            'bam': Boolean(),
+        }, constructor=Bar)
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo, immutable=True)
+
+        foo = Foo(123, Bar('hello', False))
+
+        result = FooType.load_into(foo, {'bar': {'baz': 'goodbye'}})
+
+        assert foo.bar.baz == 'hello'
+
+    def test_loading_values_into_nested_objects_with_inplace_False_does_not_modify_original_objects(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+            'bam': Boolean(),
+        }, constructor=Bar)
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo)
+
+        foo = Foo(123, Bar('hello', False))
+
+        result = FooType.load_into(foo, {'bar': {'baz': 'goodbye'}}, inplace=False)
+
+        assert foo.bar.baz == 'hello'
+        assert result.bar.baz == 'goodbye'
+
+    def test_loading_values_into_existing_objects_ignores_missing_fields(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String(), 'bar': Integer()})\
+            .load_into(obj, {'foo': 'goodbye'})
+
+        assert obj.foo == 'goodbye'
+        assert obj.bar == 123
+
+    def test_loading_values_into_existing_objects_raises_ValidationError_if_data_contains_errors(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String(), 'bar': Integer()})\
+                .load_into(obj, {'foo': 123})
+        assert exc_info.value.messages == \
+            {'foo': String.default_error_messages['invalid']}
+
+    def test_loading_values_into_existing_objects_raises_ValidationError_if_validator_fails(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        error = 'Bad object'
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String(), 'bar': Integer()},
+                   validate=constant_fail_validator(error))\
+                .load_into(obj, {'foo': 'goodbye'})
+        assert exc_info.value.messages == error
+
+    def test_loading_values_into_existing_nested_objects(self):
+        class Foo:
+            def __init__(self, bar):
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz):
+                self.baz = baz
+
+        class Baz:
+            def __init__(self, bam):
+                self.bam = bam
+
+        BazType = Object({'bam': Integer()}, constructor=Baz)
+        BarType = Object({'baz': BazType}, constructor=Bar)
+        FooType = Object({'bar': BarType}, constructor=Foo)
+
+        foo = Foo(bar=Bar(baz=Baz(123)))
+        result = FooType.load_into(foo, {'bar': {'baz': {'bam': 456}}})
+
+        assert result is foo
+        assert result.bar.baz.bam == 456
+
+    def test_loading_values_into_existing_object_when_nested_object_does_not_exist(self):
+        class Foo:
+            def __init__(self, bar):
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz):
+                self.baz = baz
+
+        class Baz:
+            def __init__(self, bam):
+                self.bam = bam
+
+        BazType = Object({'bam': Integer()}, constructor=Baz)
+        BarType = Object({'baz': BazType}, constructor=Bar)
+        FooType = Object({'bar': BarType}, constructor=Foo)
+
+        foo = Foo(bar=None)
+        result = FooType.load_into(foo, {'bar': {'baz': {'bam': 456}}})
+
+        assert result is foo
+        assert result.bar.baz.bam == 456
+
+    def test_validating_data_for_existing_objects_returns_None_if_data_is_valid(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        assert Object({'foo': String(), 'bar': Integer()})\
+            .validate_for(obj, {'foo': 'goodbye'}) is None
+
+    def test_validating_data_for_existing_objects_returns_errors_if_data_contains_errors(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        invalid = String.default_error_messages['invalid']
+
+        assert Object({'foo': String(), 'bar': Integer()})\
+                .validate_for(obj, {'foo': 123}) == {'foo': invalid}
+
+    def test_validating_data_for_existing_objects_returns_errors_if_validator_fails(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        error = 'Bad object'
+        assert Object({'foo': String(), 'bar': Integer()},
+                   validate=constant_fail_validator(error))\
+                .validate_for(obj, {'foo': 'goodbye'}) == error
+
+    def test_validating_data_for_existing_objects_does_not_modify_original_objects(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String(), 'bar': Integer()})\
+            .validate_for(obj, {'foo': 'goodbye'})
+
+        assert obj.foo == 'hello'
+        assert obj.bar == 123
 
     def test_dumping_object_attributes(self):
         MyData = namedtuple('MyData', ['foo', 'bar'])
