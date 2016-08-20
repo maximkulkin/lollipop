@@ -70,7 +70,7 @@ class Type(ErrorMessagesMixin, object):
         """
         try:
             self.load(data, context)
-            return {}
+            return None
         except ValidationError as ve:
             return ve.messages
 

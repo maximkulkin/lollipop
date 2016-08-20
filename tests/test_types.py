@@ -129,13 +129,31 @@ class ValidationTestsMixin:
             self.tested_type(validate=[constant_fail_validator(message1),
                                        constant_fail_validator(message2)])\
                 .load(self.valid_data)
-        assert exc_info.value.messages == merge_errors(message1, message2)
+        assert exc_info.value.messages == [message1, message2]
 
     def test_loading_passes_context_to_validator(self):
         context = object()
         validator = SpyValidator()
         self.tested_type(validate=validator).load(self.valid_data, context)
         assert validator.context == context
+
+    def test_validation_returns_None_if_validators_succeed(self):
+        assert self.tested_type(
+            validate=[constant_succeed_validator(),
+                      constant_succeed_validator()],
+        ).validate(self.valid_data) is None
+
+    def test_validation_returns_errors_if_validator_fails(self):
+        message1 = 'Something went wrong'
+        assert self.tested_type(validate=constant_fail_validator(message1))\
+            .validate(self.valid_data) == message1
+
+    def test_validation_returns_combined_errors_if_multiple_validators_fail(self):
+        message1 = 'Something went wrong 1'
+        message2 = 'Something went wrong 2'
+        assert self.tested_type(validate=[constant_fail_validator(message1),
+                                          constant_fail_validator(message2)])\
+            .validate(self.valid_data) == [message1, message2]
 
 
 class TestString(RequiredTestsMixin, ValidationTestsMixin):
