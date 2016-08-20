@@ -125,10 +125,10 @@ If you want more control on your data, you can specify additional validators: ::
 If you just need to validate date and not interested in result, you can use
 :func:`~Type.validate()` method: ::
 
-    print UserType.load({"email": "wasa"})
+    print UserType.validate({"email": "wasa"})
     # => {"email": "Invalid email"}
 
-    print UserType.load({"email": "wasa@example.com"})
+    print UserType.validate({"email": "wasa@example.com"})
     # => None
 
 You can define your own validators: ::
