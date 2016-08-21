@@ -15,6 +15,7 @@ Guide
     install
     quickstart
     objects
+    modifiers
     validation
     custom_types
 
