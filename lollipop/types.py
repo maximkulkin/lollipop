@@ -20,11 +20,11 @@ __all__ = [
     'type_name_hint',
     'dict_value_hint',
     'Field',
-    'ConstantField',
     'AttributeField',
     'MethodField',
     'FunctionField',
     'Object',
+    'Constant',
     'Optional',
     'LoadOnly',
     'DumpOnly',
@@ -67,10 +67,11 @@ class Type(ErrorMessagesMixin, object):
 
         :param data: Data to validate.
         :param context: Context data.
+        :returns: validation errors or None
         """
         try:
             self.load(data, context)
-            return {}
+            return None
         except ValidationError as ve:
             return ve.messages
 
@@ -80,6 +81,8 @@ class Type(ErrorMessagesMixin, object):
 
         :param data: Data to deserialize.
         :param context: Context data.
+        :returns: Loaded data
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         errors_builder = ValidationErrorBuilder()
         for validator in self._validators:
@@ -96,6 +99,8 @@ class Type(ErrorMessagesMixin, object):
 
         :param value: Value to serialize.
         :param context: Context data.
+        :returns: Serialized data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         return value
 
@@ -656,6 +661,38 @@ class Dict(Type):
         return '<{klass}>'.format(klass=self.__class__.__name__)
 
 
+class Constant(Type):
+    """Type that always serializes to given value and
+    checks this value on deserialize.
+
+    :param value: Value constant for this field.
+    :param Type field_type: Field type.
+    """
+
+    default_error_messages = {
+        'required': 'Value is required',
+        'value': 'Value is incorrect',
+    }
+
+    def __init__(self, value, field_type=Any(), *args, **kwargs):
+        super(Constant, self).__init__(*args, **kwargs)
+        self.value = value
+        self.field_type = field_type
+
+    def load(self, data, *args, **kwargs):
+        value = self.field_type.load(data)
+        if value is MISSING or value is None:
+            self._fail('required')
+
+        if value != self.value:
+            self._fail('value')
+
+        return MISSING
+
+    def dump(self, value, *args, **kwargs):
+        return self.field_type.dump(self.value, *args, **kwargs)
+
+
 class Field(ErrorMessagesMixin):
     """Base class for describing :class:`Object` fields. Defines a way to access
     object fields during serialization/deserialization. Usually it extracts data to
@@ -668,7 +705,22 @@ class Field(ErrorMessagesMixin):
         super(Field, self).__init__(*args, **kwargs)
         self.field_type = field_type
 
-    def _get_value(self, name, obj, context=None):
+    def get_value(self, name, obj, context=None):
+        """Get value of field `name` from object `obj`.
+
+        :params str name: Field name.
+        :params obj: Object to get field value from.
+        :returns: Field value.
+        """
+        raise NotImplemented()
+
+    def set_value(self, name, obj, value, context=None):
+        """Set given value of field `name` to object `obj`.
+
+        :params str name: Field name.
+        :params obj: Object to get field value from.
+        :params value: Field value to set.
+        """
         raise NotImplemented()
 
     def load(self, name, data, *args, **kwargs):
@@ -677,8 +729,40 @@ class Field(ErrorMessagesMixin):
 
         :param str name: Name of attribute to deserialize.
         :param data: Raw data to get value to deserialize from.
+        :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: Loaded data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
-        return MISSING
+        return self.field_type.load(data.get(name, MISSING), *args, **kwargs)
+
+    def load_into(self, obj, name, data, inplace=True, *args, **kwargs):
+        """Deserialize data from primitive types updating existing object.
+        Raises :exc:`~lollipop.errors.ValidationError` if data is invalid.
+
+        :param obj: Object to update with deserialized data.
+        :param str name: Name of attribute to deserialize.
+        :param data: Raw data to get value to deserialize from.
+        :param bool inplace: If True update data inplace;
+            otherwise - create new data.
+        :param kwargs: Same keyword arguments as for :meth:`load`.
+        :returns: Loaded data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
+        """
+        if obj is None:
+            raise ValueError('Load target should not be None')
+
+        value = data.get(name, MISSING)
+
+        if value is MISSING:
+            return
+
+        target = self.get_value(name, obj, *args, **kwargs)
+        if target is not None and target is not MISSING \
+                and hasattr(self.field_type, 'load_into'):
+            return self.field_type.load_into(target, value, inplace=inplace,
+                                             *args, **kwargs)
+        else:
+            return self.field_type.load(value, *args, **kwargs)
 
     def dump(self, name, obj, *args, **kwargs):
         """Serialize data to primitive types. Raises
@@ -686,40 +770,11 @@ class Field(ErrorMessagesMixin):
 
         :param str name: Name of attribute to serialize.
         :param obj: Application object to extract serialized value from.
+        :returns: Serialized data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
-        value = self._get_value(name, obj)
+        value = self.get_value(name, obj)
         return self.field_type.dump(value, *args, **kwargs)
-
-
-class ConstantField(Field):
-    """Field that always serializes to given value and does not deserialize.
-
-    :param Type field_type: Field type.
-    :param value: Value constant for this field.
-    """
-
-    default_error_messages = {
-        'required': 'Value is required',
-        'value': 'Value is incorrect',
-    }
-
-    def __init__(self, field_type, value, *args, **kwargs):
-        super(ConstantField, self).__init__(field_type, *args, **kwargs)
-        self.value = value
-
-    def _get_value(self, name, obj, *args, **kwargs):
-        return self.value
-
-    def load(self, name, data, *args, **kwargs):
-        value = data.get(name, MISSING)
-        if value is MISSING or value is None:
-            self._fail('required')
-
-        result = self.field_type.load(value)
-        if result != MISSING and result != self.value:
-            self._fail('value')
-
-        return MISSING
 
 
 class AttributeField(Field):
@@ -733,12 +788,11 @@ class AttributeField(Field):
         super(AttributeField, self).__init__(field_type, *args, **kwargs)
         self.attribute = attribute
 
-    def _get_value(self, name, obj, *args, **kwargs):
+    def get_value(self, name, obj, *args, **kwargs):
         return getattr(obj, self.attribute or name, MISSING)
 
-    def load(self, name, data, *args, **kwargs):
-        value = data.get(name, MISSING)
-        return self.field_type.load(value, *args, **kwargs)
+    def set_value(self, name, obj, value, *args, **kwargs):
+        setattr(obj, self.attribute or name, value)
 
 
 class MethodField(Field):
@@ -760,20 +814,36 @@ class MethodField(Field):
 
 
     :param Type field_type: Field type.
-    :param str method: Method name. Method should not take any arguments.
+    :param str get: Name of method to retrieve field value from object.
+        Method should not take any arguments.
+    :param str set: Name of method to set field value in object.
+        Method should take 1 argument - new field value to set.
+    :param kwargs: Same keyword arguments as for :class:`Field`.
     """
-    def __init__(self, field_type, method, *args, **kwargs):
+    def __init__(self, field_type, get=None, set=None, *args, **kwargs):
         super(MethodField, self).__init__(field_type, *args, **kwargs)
-        self.method = method
+        self.get_method = get
+        self.set_method = set
 
-    def _get_value(self, name, obj, context=None):
-        if self.method:
-            name = self.method
-        if not hasattr(obj, name):
-            raise ValueError('Object does not have method %s' % name)
-        if not callable(getattr(obj, name)):
-            raise ValueError('Value %s is not callable' % name)
-        return call_with_context(getattr(obj, name), context)
+    def get_value(self, name, obj, context=None, *args, **kwargs):
+        if not self.get_method:
+            return MISSING
+        if not hasattr(obj, self.get_method):
+            raise ValueError('Object does not have method %s' % self.get_method)
+        method = getattr(obj, self.get_method)
+        if not callable(method):
+            raise ValueError('Value of %s is not callable' % self.get_method)
+        return call_with_context(method, context)
+
+    def set_value(self, name, obj, value, context=None, *args, **kwargs):
+        if not self.set_method:
+            return MISSING
+        if not hasattr(obj, self.set_method):
+            raise ValueError('Object does not have method %s' % self.set_method)
+        method = getattr(obj, self.set_method)
+        if not callable(method):
+            raise ValueError('Value of %s is not callable' % self.set_method)
+        return call_with_context(method, context, value)
 
 
 class FunctionField(Field):
@@ -795,28 +865,44 @@ class FunctionField(Field):
 
 
     :param Type field_type: Field type.
-    :param callable function: Function that takes source object and returns
+    :param callable get: Function that takes source object and returns
         field value.
+    :param callable set: Function that takes source object and new field value
+        and sets that value to object field. Function return value is ignored.
     """
-    def __init__(self, field_type, function, *args, **kwargs):
+    def __init__(self, field_type, get=None, set=None, *args, **kwargs):
         super(FunctionField, self).__init__(field_type, *args, **kwargs)
-        self.function = function
+        if get is not None and not callable(get):
+            raise ValueError("Get function is not callable")
+        if set is not None and not callable(set):
+            raise ValueError("Set function is not callable")
+        self.get_func = get
+        self.set_func = set
 
-    def _get_value(self, name, obj, context=None):
-        return call_with_context(self.function, context, name, obj)
+    def get_value(self, name, obj, context=None, *args, **kwargs):
+        if self.get_func is None:
+            return MISSING
+        return call_with_context(self.get_func, context, obj)
+
+    def set_value(self, name, obj, value, context=None, *args, **kwargs):
+        if self.set_func is None:
+            return MISSING
+        call_with_context(self.set_func, context, obj, value)
 
 
 class Object(Type):
     """An object type. Serializes to a dict of field names to serialized field
     values. Parametrized with field names to types mapping.
     The way values are obtained during serialization is determined by type of
-    field object in :attr:`~Object.fields` mapping (see :class:`ConstantField`,
-    :class:`AttributeField`, :class:`MethodField` for details). You can specify
+    field object in :attr:`~Object.fields` mapping (see :class:`AttributeField`,
+    :class:`MethodField` or :class:`FunctionField` for details). You can specify
     either :class:`Field` object, a :class:`Type` object or any other value.
+
     In case of :class:`Type`, it will be automatically wrapped with a default
     field type, which is controlled by :attr:`~Object.default_field_type`
     constructor argument.
-    In case of any other value it will be transformed into :class:`ConstantField`.
+
+    In case of any other value it will be transformed into :class:`Constant`.
 
     Example: ::
 
@@ -848,6 +934,8 @@ class Object(Type):
         fields (own or inherited) won't be used.
     :param list exclude: List of field names to exclude from this object.
         All other fields (own or inherited) will be included.
+    :param bool immutable: If False, object is allowed to be modified in-place;
+        if True - always create a copy with `constructor`.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
 
@@ -859,6 +947,7 @@ class Object(Type):
     def __init__(self, bases_or_fields=None, fields=None, constructor=dict,
                  default_field_type=AttributeField,
                  allow_extra_fields=True, only=None, exclude=None,
+                 immutable=False,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
         if bases_or_fields is None and fields is None:
@@ -884,13 +973,14 @@ class Object(Type):
         self.allow_extra_fields = allow_extra_fields
         self.only = only
         self.exclude = exclude
+        self.immutable = immutable
 
     def _normalize_field(self, value, default_field_type):
         if isinstance(value, Field):
             return value
-        if isinstance(value, Type):
-            return default_field_type(value)
-        return ConstantField(Any(), value)
+        if not isinstance(value, Type):
+            value = Constant(value)
+        return default_field_type(value)
 
     # Resolved at time of usage
     @property
@@ -942,6 +1032,85 @@ class Object(Type):
         errors_builder.raise_errors()
 
         return self.constructor(**super(Object, self).load(result, *args, **kwargs))
+
+    def load_into(self, obj, data, inplace=True, *args, **kwargs):
+        """Load data and update existing object.
+
+        :param obj: Object to update with deserialized data.
+        :param data: Raw data to get value to deserialize from.
+        :param bool inplace: If True update data inplace;
+            otherwise - create new data.
+        :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: Updated object.
+        :raises: :exc:`~lollipop.errors.ValidationError`
+        """
+        if obj is None:
+            raise ValueError('Load target should not be None')
+
+        if data is MISSING or data is None:
+            return
+
+        if not is_dict(data):
+            self._fail('invalid')
+
+        errors_builder = ValidationErrorBuilder()
+
+        data1 = {}
+        for name, field in self.fields:
+            try:
+                if name in data:
+                    # Load new data
+                    value = field.load_into(obj, name, data,
+                                            inplace=not self.immutable and inplace)
+                else:
+                    # Retrive data from existing object
+                    value = field.get_value(name, obj, *args, **kwargs)
+
+                if value is not MISSING:
+                    data1[name] = value
+            except ValidationError as ve:
+                errors_builder.add_error(name, ve.messages)
+
+        if not self.allow_extra_fields:
+            field_names = [name for name, _ in self.fields]
+            for name in data:
+                if name not in field_names:
+                    errors_builder.add_error(name, self._error_messages['unknown'])
+
+        errors_builder.raise_errors()
+
+        data2 = super(Object, self).load(data1, *args, **kwargs)
+
+        if self.immutable or not inplace:
+            result = self.constructor(**data2)
+        else:
+            for name, field in self.fields:
+                if name not in data:
+                    continue
+
+                field.set_value(name, obj, data2.get(name, MISSING))
+
+            result = obj
+
+        return result
+
+    def validate_for(self, obj, data, *args, **kwargs):
+        """Takes target object and serialized data, tries to update that object
+        with data and validate result. Returns validation errors or None.
+        Object is not updated.
+
+        :param obj: Object to check data validity against. In case the data is
+            partial object is used to get the rest of data from.
+        :param data: Data to validate. Can be partial (not all schema field data
+            is present).
+        :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: validation errors or None
+        """
+        try:
+            self.load_into(obj, data, inplace=False, *args, **kwargs)
+            return None
+        except ValidationError as ve:
+            return ve.messages
 
     def dump(self, obj, *args, **kwargs):
         if obj is MISSING or obj is None:

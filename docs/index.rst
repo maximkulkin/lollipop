@@ -15,6 +15,7 @@ Guide
     install
     quickstart
     objects
+    modifiers
     validation
     custom_types
 
@@ -26,3 +27,13 @@ API Reference
 
     api_reference
 
+Other information
+=================
+
+.. toctree::
+    :maxdepth: 1
+
+    why
+    changelog
+    license
+    kudos

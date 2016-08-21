@@ -20,6 +20,15 @@ lollipop
 
 Data serialization and validation library
 
+Features
+========
+* flexible schema definition API with powerful type combinators
+* data validation
+* serialization/deserialization
+* in-place deserialization
+
+Example
+=======
 .. code-block:: python
 
     from lollipop.types import Object, String, Date
@@ -40,17 +49,19 @@ Data serialization and validation library
         'author': PersonType,
     }, constructor=Book)
 
-    BookType.dump(
-        Book(
-            title='Harry Potter and the Philosopher\'s Stone',
-            publish_date=date(1997, 06, 26),
-            author=Person(name='J. K. Rowling')
-        )
+    harryPotter1 = Book(
+        title='Harry Potter and the Philosopher\'s Stone',
+        publish_date=date(1997, 6, 26),
+        author=Person(name='J. K. Rowling')
     )
+
+    # Dumping
+    BookType.dump(harryPotter1)
     # => {'title': 'Harry Potter and the Philosopher\'s Stone',
     #     'publish_date': '1997-06-26',
     #     'author': {'name': 'J. K. Rowling'}}
 
+    # Loading
     BookType.load({'title': 'Harry Potter and the Philosopher\'s Stone',
                    'publish_date': '1997-06-26',
                    'author': {'name': 'J. K. Rowling'}})
@@ -58,6 +69,13 @@ Data serialization and validation library
     #         publish_date=date(1997, 06, 26),
     #         author=User(name='J. K. Rowling'))
 
+    # Partial inplace loading
+    BookType.load_into(harryPotter1, {'publish_date': '1997-06-27'})
+    # => Book(title='Harry Potter and the Philosopher\'s Stone',
+    #         publish_date=date(1997, 06, 27),
+    #         author=User(name='J. K. Rowling'))
+
+    # Validation
     BookType.validate({
         'title': 'Harry Potter and the Philosopher\'s Stone',
         'author': {'name': ''},
