@@ -51,8 +51,10 @@ to provide a data constructor to type object: ::
 Constructor function should take field values as keyword arguments and return
 constructed object.
 
-Value extraction
-----------------
+.. _value_access:
+
+Value access
+------------
 
 When you serialize (dump) objects, field values are expected to be object attributes.
 But library actually allows controlling that. This is done with
@@ -105,12 +107,69 @@ value for a field which is not :class:`~lollipop.types.Type` and not
     Object({'answer': AttributeField(Constant(42))}).dump(object())  # => {'answer': 42}
     Object({'answer': 42}).dump(object())  # => {'answer': 42}
 
+.. _inplace_updates:
+
+Updating objects in-place
+-------------------------
+
+After you have created your initial version of your objects with data obtained
+from user you might want to allow user to update them. And you might want to allow
+your users to specify only changed attributes without sending all of them. Or after
+creation your object store additional information that you do not want to expose to
+users or allow users to modify, e.g. object ID or creation date. So you make them
+dump only or do not include them in schema at all. But since :meth:`load()` method
+return you a new copy of your object, that object does not contain those additional
+data.
+Luckily this library allows updating existing objects in-place: ::
+
+    user = User.get(user_id)
+    try:
+        UserType.load_into(user, {'name': 'John Doe'})
+        User.save(user)
+    except ValidationError as ve:
+        # .. handle user validation error
+
+If you do not want to alter existing object but still want your users to specify
+partial data on update, you can declare your object type as "immutable". In this
+case it won't modify your objects but will create new ones with data merged from
+existing object and data being deserialized: ::
+
+    UserType = Object({
+        'name': String(),
+        'birthdate': Date(),
+        # ...
+    }, constructor=User, immutable=True)
+
+    user = User.get(user_id)
+    try:
+        user1 = UserType.load_into(user, {'name': 'John Doe'})
+        User.save(user1)
+    except ValidationError as ve:
+        # .. handle user validation error
+
+You can disable in-place update on per-invocation basis with `inplace` argument: ::
+
+   user1 = UserType.load_into(user, new_data, inplace=False)
+
+For partial update validation there is a :meth:`~lollipop.types.Object.validate_for`: ::
+
+   errors = UserType.validate_for(user, new_data)
+
+When doing partial update all new data is validated during deserialization. Also,
+whole-object validations are also run.
+
+How values are put back into object is controlled by :class:`~lollipop.types.Field`
+subclasses that you use in object schema declaration (e.g.
+:class:`~lollipop.types.AttributeField`, :class:`~lollipop.types.MethodField` or
+:class:`~lollipop.types.FunctionField`. See :ref:`value_access` for
+details).
+
 
 Object Schema Inheritance
 -------------------------
 
 To be able to allow reusing parts of schema, you can supply a base
-:class:`~lollipop.type.Object`: ::
+:class:`~lollipop.types.Object`: ::
 
     BaseType = Object({'base': String()})
     InheritedType = Object(BaseType, {'foo': Integer()})
