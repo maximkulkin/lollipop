@@ -26,3 +26,13 @@ API Reference
 
     api_reference
 
+Other information
+=================
+
+.. toctree::
+    :maxdepth: 1
+
+    why
+    changelog
+    license
+    kudos
