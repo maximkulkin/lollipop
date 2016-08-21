@@ -67,6 +67,7 @@ class Type(ErrorMessagesMixin, object):
 
         :param data: Data to validate.
         :param context: Context data.
+        :returns: validation errors or None
         """
         try:
             self.load(data, context)
@@ -80,6 +81,8 @@ class Type(ErrorMessagesMixin, object):
 
         :param data: Data to deserialize.
         :param context: Context data.
+        :returns: Loaded data
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         errors_builder = ValidationErrorBuilder()
         for validator in self._validators:
@@ -96,6 +99,8 @@ class Type(ErrorMessagesMixin, object):
 
         :param value: Value to serialize.
         :param context: Context data.
+        :returns: Serialized data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         return value
 
@@ -705,6 +710,7 @@ class Field(ErrorMessagesMixin):
 
         :params str name: Field name.
         :params obj: Object to get field value from.
+        :returns: Field value.
         """
         raise NotImplemented()
 
@@ -724,6 +730,8 @@ class Field(ErrorMessagesMixin):
         :param str name: Name of attribute to deserialize.
         :param data: Raw data to get value to deserialize from.
         :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: Loaded data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         return self.field_type.load(data.get(name, MISSING), *args, **kwargs)
 
@@ -737,6 +745,8 @@ class Field(ErrorMessagesMixin):
         :param bool inplace: If True update data inplace;
             otherwise - create new data.
         :param kwargs: Same keyword arguments as for :meth:`load`.
+        :returns: Loaded data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         if obj is None:
             raise ValueError('Load target should not be None')
@@ -760,6 +770,8 @@ class Field(ErrorMessagesMixin):
 
         :param str name: Name of attribute to serialize.
         :param obj: Application object to extract serialized value from.
+        :returns: Serialized data.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         value = self.get_value(name, obj)
         return self.field_type.dump(value, *args, **kwargs)
@@ -1029,6 +1041,8 @@ class Object(Type):
         :param bool inplace: If True update data inplace;
             otherwise - create new data.
         :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: Updated object.
+        :raises: :exc:`~lollipop.errors.ValidationError`
         """
         if obj is None:
             raise ValueError('Load target should not be None')
@@ -1090,6 +1104,7 @@ class Object(Type):
         :param data: Data to validate. Can be partial (not all schema field data
             is present).
         :param kwargs: Same keyword arguments as for :meth:`Type.load`.
+        :returns: validation errors or None
         """
         try:
             self.load_into(obj, data, inplace=False, *args, **kwargs)
