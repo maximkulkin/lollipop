@@ -3,6 +3,9 @@
 Validation
 ==========
 
+Validators
+----------
+
 Validation allows to check that data is consistent. It is run on raw data before
 it is deserialized. E.g. :class:`~lollipop.types.DateTime` deserializes string to
 :class:`datetime.datetime` so validations are run on a string before it is parsed.
@@ -60,3 +63,20 @@ messages in validator constructor: ::
 
     message = 'Should be greater than answer to the Ultimate Question of Life, the Universe, and Everything'
     Integer(validate=GreaterThan(42, error_messages={'greater': message}))
+
+
+Accumulating Errors
+-------------------
+If you writing a whole-object validator that checks various field combinations for
+correctness, it might be hard to accumulate errors. That's why the library provides
+a special builder for errors - :class:`~lollipop.errors.ValidationErrorBuilder`: ::
+
+    def validate_my_object(data):
+        builder = ValidationErrorBuilder()
+
+        if data['foo']['bar'] >= data['baz']['bam']:
+            builder.add_error('foo.bar': 'Should be less than bam')
+        if data['foo']['quux'] >= data['baz']['bam']:
+            builder.add_error('foo.quux': 'Should be less than bam')
+
+        builder.raise_errors()
