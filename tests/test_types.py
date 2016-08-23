@@ -838,6 +838,20 @@ class TestMethodField:
         obj = MethodDummy()
         assert MethodField(Any(), get='foo').get_value('quux', obj) == obj.foo()
 
+    def test_get_value_returns_result_of_calling_method_calculated_by_given_function_on_object(self):
+        class Dummy:
+            def fooBar(self):
+                return 'hello'
+
+            def barBaz(self):
+                return 123
+
+        obj = Dummy()
+        assert MethodField(Any(), get=to_camel_case)\
+            .get_value('foo_bar', obj) == obj.fooBar()
+        assert MethodField(Any(), get=to_camel_case)\
+            .get_value('bar_baz', obj) == obj.barBaz()
+
     def test_get_value_returns_MISSING_if_get_method_is_not_specified(self):
         obj = MethodDummy()
         assert MethodField(Any()).get_value('quux', obj) == MISSING
@@ -865,6 +879,29 @@ class TestMethodField:
         obj = MethodDummy()
         MethodField(Any(), set='set_foo').set_value('quux', obj, 'goodbye')
         assert obj.foo() == 'goodbye'
+
+    def test_set_value_calls_method_calculated_by_given_function_on_object(self):
+        class Dummy:
+            def fooBar(self):
+                return self._fooBar
+
+            def setFooBar(self, value):
+                self._fooBar = value
+
+            def barBaz(self):
+                return self._barBaz
+
+            def setBarBaz(self, value):
+                self._barBaz = value
+
+        obj = Dummy()
+        field = MethodField(Any(), set=lambda name: to_camel_case('set_'+name))
+
+        field.set_value('foo_bar', obj, 'goodbye')
+        field.set_value('bar_baz', obj, 456)
+
+        assert obj.fooBar() == 'goodbye'
+        assert obj.barBaz() == 456
 
     def test_set_value_does_not_do_anything_if_set_method_is_not_specified(self):
         obj = MethodDummy(foo='hello', bar=123)

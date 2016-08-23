@@ -822,35 +822,51 @@ class MethodField(Field):
 
 
     :param Type field_type: Field type.
-    :param str get: Name of method to retrieve field value from object.
-        Method should not take any arguments.
-    :param str set: Name of method to set field value in object.
-        Method should take 1 argument - new field value to set.
+    :param get: Can be either string or callable. If string, use target object
+        method with given name to obain value.
+        If callable, should take field name and return name of object
+        method to use.
+        Referenced method should take no argument - new field value to set.
+    :param set: Can be either string or callable. If string, use target object
+        method with given name to set value in object.
+        If callable, should take field name and return name of object
+        method to use.
+        Referenced method should take 1 argument - new field value to set.
     :param kwargs: Same keyword arguments as for :class:`Field`.
     """
     def __init__(self, field_type, get=None, set=None, *args, **kwargs):
         super(MethodField, self).__init__(field_type, *args, **kwargs)
+        if get is not None:
+            if not callable(get):
+                get = (lambda attr: lambda name: attr)(get)
+        if set is not None:
+            if not callable(set):
+                set = (lambda attr: lambda name: attr)(set)
         self.get_method = get
         self.set_method = set
 
     def get_value(self, name, obj, context=None, *args, **kwargs):
         if not self.get_method:
             return MISSING
-        if not hasattr(obj, self.get_method):
-            raise ValueError('Object does not have method %s' % self.get_method)
-        method = getattr(obj, self.get_method)
+
+        method_name = self.get_method(name)
+        if not hasattr(obj, method_name):
+            raise ValueError('Object does not have method %s' % method_name)
+        method = getattr(obj, method_name)
         if not callable(method):
-            raise ValueError('Value of %s is not callable' % self.get_method)
+            raise ValueError('Value of %s is not callable' % method_name)
         return call_with_context(method, context)
 
     def set_value(self, name, obj, value, context=None, *args, **kwargs):
         if not self.set_method:
             return MISSING
-        if not hasattr(obj, self.set_method):
-            raise ValueError('Object does not have method %s' % self.set_method)
-        method = getattr(obj, self.set_method)
+
+        method_name = self.set_method(name)
+        if not hasattr(obj, method_name):
+            raise ValueError('Object does not have method %s' % method_name)
+        method = getattr(obj, method_name)
         if not callable(method):
-            raise ValueError('Value of %s is not callable' % self.set_method)
+            raise ValueError('Value of %s is not callable' % method_name)
         return call_with_context(method, context, value)
 
 
