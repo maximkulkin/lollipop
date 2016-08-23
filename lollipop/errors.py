@@ -47,15 +47,15 @@ class ErrorMessagesMixin(object):
             self._error_messages.update(getattr(cls, 'default_error_messages', {}))
         self._error_messages.update(error_messages or {})
 
-    def _fail(self, key, **kwargs):
-        if key not in self._error_messages:
+    def _fail(self, error_key, **kwargs):
+        if error_key not in self._error_messages:
             msg = MISSING_ERROR_MESSAGE.format(
                 class_name=self.__class__.__name__,
-                key=key
+                error_key=error_key
             )
             raise ValueError(msg)
 
-        msg = self._error_messages[key]
+        msg = self._error_messages[error_key]
         if isinstance(msg, str):
             msg = msg.format(**kwargs)
 
