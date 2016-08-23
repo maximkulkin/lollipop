@@ -1,6 +1,7 @@
-from lollipop.errors import ValidationError, ErrorMessagesMixin
+from lollipop.errors import ValidationError, ValidationErrorBuilder, \
+    ErrorMessagesMixin
 from lollipop.compat import string_types
-from lollipop.utils import call_with_context
+from lollipop.utils import call_with_context, is_list
 import re
 
 
@@ -12,6 +13,8 @@ __all__ = [
     'NoneOf',
     'AnyOf',
     'Regexp',
+    'Unique',
+    'Each',
 ]
 
 
@@ -256,4 +259,80 @@ class Regexp(Validator):
         return '<{klass} {regexp}>'.format(
             klass=self.__class__.__name__,
             regexp=self.regexp.pattern,
+        )
+
+
+class Unique(Validator):
+    """Validator that succeeds if items in collection are unqiue.
+    By default items themselves should be unique, but you can specify a custom
+    function to get uniqueness key from items.
+
+    :param callable key: Function to get uniqueness key from items.
+    :param str error: Erorr message in case item appear more than once.
+        Can be interpolated with ``data`` (the item that is not unique)
+        and ``key`` (uniquness key that is not unique).
+    """
+
+    default_error_messages = {
+        'invalid': 'Value should be collection',
+        'unique': 'Values are not unique',
+    }
+
+    def __init__(self, key=lambda x: x, error=None, **kwargs):
+        super(Unique, self).__init__(**kwargs)
+        self.key = key
+        if error is not None:
+            self._error_messages['unique'] = error
+
+    def __call__(self, value):
+        if not is_list(value):
+            self._fail('invalid')
+
+        seen = set()
+        for item in value:
+            key = self.key(item)
+            if key in seen:
+                self._fail('unique', data=item, key=key)
+            seen.add(key)
+
+    def __repr__(self):
+        return '<{klass}>'.format(klass=self.__class__.__name__)
+
+
+class Each(Validator):
+    """Validator that takes a list of validators and applies all of them to
+    each item in collection.
+
+    :param validators: Validator or list of validators to run against each element
+        of collection.
+    """
+    default_error_messages = {
+        'invalid': 'Value should be collection',
+    }
+
+    def __init__(self, validators, **kwargs):
+        super(Validator, self).__init__(**kwargs)
+        if not is_list(validators):
+            validators = [validators]
+        self.validators = validators
+
+    def __call__(self, value):
+        if not is_list(value):
+            self._fail('invalid', data=value)
+
+        error_builder = ValidationErrorBuilder()
+
+        for idx, item in enumerate(value):
+            for validator in self.validators:
+                try:
+                    validator(item)
+                except ValidationError as ve:
+                    error_builder.add_errors({idx: ve.messages})
+
+        error_builder.raise_errors()
+
+    def __repr__(self):
+        return "<{klass} {validators!r}>".format(
+            klass=self.__class__.__name__,
+            validators=self.validators,
         )

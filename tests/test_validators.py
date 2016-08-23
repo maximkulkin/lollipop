@@ -1,6 +1,7 @@
 from pytest import raises
 from contextlib import contextmanager
-from lollipop.validators import Predicate, Range, Length, NoneOf, AnyOf, Regexp
+from lollipop.validators import Predicate, Range, Length, NoneOf, AnyOf, Regexp, \
+    Unique, Each
 from lollipop.errors import ValidationError
 import re
 
@@ -312,3 +313,82 @@ class TestRegexp:
         with raises(ValidationError) as exc_info:
             Regexp('a+b', error=message)('bbc')
         assert exc_info.value.messages == message.format(data='bbc', regexp='a+b')
+
+
+class TestUnique:
+    def test_raising_ValidationError_if_value_is_not_collection(self):
+        with raises(ValidationError) as exc_info:
+            Unique()('foo')
+        assert exc_info.value.messages == Unique.default_error_messages['invalid']
+
+    def test_matching_empty_collection(self):
+        with not_raises(ValidationError):
+            Unique()([])
+
+    def test_matching_collection_of_unique_values(self):
+        with not_raises(ValidationError):
+            Unique()(['foo', 'bar', 'baz'])
+
+    def test_matching_collection_of_values_with_unique_custom_keys(self):
+        class Foo:
+            def __init__(self, foo):
+                self.foo = foo
+
+        with not_raises(ValidationError):
+            Unique(lambda x: x.foo)([Foo('foo'), Foo('bar'), Foo('baz')])
+
+    def test_raising_ValidationError_if_item_appears_more_than_once(self):
+        with raises(ValidationError) as exc_info:
+            Unique()(['foo', 'bar', 'foo'])
+        assert exc_info.value.messages == Unique.default_error_messages['unique']
+
+    def test_raising_ValidationError_if_custom_key_appears_more_than_once(self):
+        class Foo:
+            def __init__(self, foo):
+                self.foo = foo
+
+        with raises(ValidationError) as exc_info:
+            Unique(lambda x: x.foo)([Foo('foo'), Foo('bar'), Foo('foo')])
+        assert exc_info.value.messages == Unique.default_error_messages['unique']
+
+    def test_customizing_error_message(self):
+        class Foo:
+            def __init__(self, foo):
+                self.foo = foo
+
+        message = 'Invalid data {data} with key {key}'
+        x = Foo('foo')
+        y = Foo('foo')
+        with raises(ValidationError) as exc_info:
+            Unique(lambda x: x.foo, error=message)([x, y])
+        assert exc_info.value.messages == message.format(data=y, key='foo')
+
+
+is_odd = Predicate(lambda x: x % 2 == 1, 'Value should be odd')
+is_small = Predicate(lambda x: x <= 5, 'Value should be small')
+
+
+class TestEach:
+    def test_raising_ValidationError_if_value_is_not_collection(self):
+        with raises(ValidationError) as exc_info:
+            Each(lambda x: x)('foo')
+        assert exc_info.value.messages == Each.default_error_messages['invalid']
+
+    def test_matching_empty_collections(self):
+        with not_raises(ValidationError):
+            Each(is_odd)([])
+
+    def test_matching_collections_each_elemenet_of_which_matches_given_validators(self):
+        with not_raises(ValidationError):
+            Each([is_odd, is_small])([1, 3, 5])
+
+    def test_raising_ValidationError_if_single_validator_fails(self):
+        with raises(ValidationError) as exc_info:
+            Each(is_odd)([1, 2, 3])
+        assert exc_info.value.messages == {1: 'Value should be odd'}
+
+    def test_raising_ValidationError_if_any_item_fails_any_validator(self):
+        with raises(ValidationError) as exc_info:
+            Each([is_odd, is_small])([1, 2, 5, 7])
+        assert exc_info.value.messages == {1: 'Value should be odd',
+                                           3: 'Value should be small'}
