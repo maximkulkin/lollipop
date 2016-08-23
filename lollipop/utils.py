@@ -1,4 +1,5 @@
 import inspect
+import re
 
 
 def is_list(value):
@@ -28,3 +29,13 @@ def call_with_context(func, context, *args):
         args.append(context)
 
     return func(*args)
+
+
+def to_snake_case(s):
+    """Converts camel-case identifiers to snake-case."""
+    return re.sub('([^_A-Z])([A-Z])', lambda m: m.group(1) + '_' + m.group(2).lower(), s)
+
+
+def to_camel_case(s):
+    """Converts snake-case identifiers to camel-case."""
+    return re.sub('_([a-z])', lambda m: m.group(1).upper(), s)

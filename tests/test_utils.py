@@ -1,4 +1,4 @@
-from lollipop.utils import call_with_context
+from lollipop.utils import call_with_context, to_camel_case, to_snake_case
 
 
 class ObjMethodDummy:
@@ -67,3 +67,16 @@ class TestCallWithContext:
         obj = ObjCallableDummy()
         call_with_context(obj, context, 1, 'foo')
         assert obj.args == (1, 'foo', context)
+
+
+class TestToCamelCase:
+    def test_converting_snake_case_to_camel_case(self):
+        assert to_camel_case('foo_bar') == 'fooBar'
+        assert to_camel_case('fooBar') == 'fooBar'
+        assert to_camel_case('Foo_Bar') == 'Foo_Bar'
+
+
+class TestToSnakeCase:
+    def test_converting_camel_case_to_snake_case(self):
+        assert to_snake_case('fooBar') == 'foo_bar'
+        assert to_snake_case('foo_bar') == 'foo_bar'
