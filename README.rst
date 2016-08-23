@@ -75,6 +75,17 @@ Example
     #         publish_date=date(1997, 06, 27),
     #         author=User(name='J. K. Rowling'))
 
+    # Loading list of objects
+    List(BookType).load([
+        {'title': 'Harry Potter and the Philosopher\'s Stone',
+         'publish_date': '1997-06-26',
+         'author': {'name': 'J. K. Rowling'}},
+        {'title': 'Harry Potter and the Chamber of Secrets',
+         'publish_date': '1998-07-02',
+         'author': {'name': 'J. K. Rowling'}},
+    ])
+    # => [Book(...), Book(...)]
+
     # Validation
     BookType.validate({
         'title': 'Harry Potter and the Philosopher\'s Stone',
