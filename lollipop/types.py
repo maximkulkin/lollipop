@@ -779,20 +779,28 @@ class Field(ErrorMessagesMixin):
 
 class AttributeField(Field):
     """Field that corresponds to object attribute.
+    Subclasses can use `name_to_attribute` field to convert field names to
+    attribute names.
 
     :param Type field_type: Field type.
-    :param str attribute: Use given attribute name instead of field name
-        defined in object type.
+    :param attribute: Can be either string or callable. If string, use given
+        attribute name instead of field name defined in object type.
+        If callable, should take a single argument - name of field - and
+        return name of corresponding object attribute to obtain value from.
     """
     def __init__(self, field_type, attribute=None, *args, **kwargs):
         super(AttributeField, self).__init__(field_type, *args, **kwargs)
-        self.attribute = attribute
+        if attribute is None:
+            attribute = lambda name: name
+        elif not callable(attribute):
+            attribute = (lambda attr: lambda name: attr)(attribute)
+        self.name_to_attribute = attribute
 
     def get_value(self, name, obj, *args, **kwargs):
-        return getattr(obj, self.attribute or name, MISSING)
+        return getattr(obj, self.name_to_attribute(name), MISSING)
 
     def set_value(self, name, obj, value, *args, **kwargs):
-        setattr(obj, self.attribute or name, value)
+        setattr(obj, self.name_to_attribute(name), value)
 
 
 class MethodField(Field):

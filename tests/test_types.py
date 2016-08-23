@@ -7,6 +7,7 @@ from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Optional, LoadOnly, DumpOnly, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
+from lollipop.utils import to_camel_case
 from collections import namedtuple
 
 
@@ -742,6 +743,15 @@ class TestAttributeField:
         assert AttributeField(Any(), attribute='bar')\
             .get_value('foo', obj) == obj.bar
 
+    def test_getting_value_returns_value_of_field_name_transformed_with_given_name_transformation(self):
+        class Dummy:
+            def __init__(self, fooBar):
+                self.fooBar = fooBar
+
+        obj = Dummy(fooBar='hello')
+        assert AttributeField(Any(), attribute=to_camel_case)\
+            .get_value('foo_bar', obj) == obj.fooBar
+
     def test_setting_value_sets_given_value_to_given_object_attribute(self):
         obj = AttributeDummy()
         AttributeField(Any()).set_value('foo', obj, 'goodbye')
@@ -752,6 +762,16 @@ class TestAttributeField:
         AttributeField(Any(), attribute='bar').set_value('foo', obj, 'goodbye')
         assert obj.foo == 'hello'
         assert obj.bar == 'goodbye'
+
+    def test_setting_value_sets_given_value_to_field_name_transformed_with_given_name_transformation(self):
+        class Dummy:
+            def __init__(self, fooBar):
+                self.fooBar = fooBar
+
+        obj = Dummy(fooBar='hello')
+        AttributeField(Any(), attribute=to_camel_case)\
+            .set_value('foo_bar', obj, 'goodbye')
+        assert obj.fooBar == 'goodbye'
 
     def test_loading_value_with_field_type(self):
         field_type = SpyType()
