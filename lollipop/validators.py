@@ -81,10 +81,13 @@ class Range(Validator):
         'range': 'Value should be at least {min} and at most {max}',
     }
 
-    def __init__(self, min=None, max=None, **kwargs):
+    def __init__(self, min=None, max=None, error=None, **kwargs):
         super(Range, self).__init__(**kwargs)
         self.min = min
         self.max = max
+        if error is not None:
+            for key in ['min', 'max', 'range']:
+                self._error_messages[key] = error
 
     def _fail(self, key, **kwargs):
         super(Range, self)._fail(key, min=self.min, max=self.max, **kwargs)
@@ -127,11 +130,14 @@ class Length(Validator):
         'range': 'Length should be at least {min} and at most {max}',
     }
 
-    def __init__(self, exact=None, min=None, max=None, **kwargs):
+    def __init__(self, exact=None, min=None, max=None, error=None, **kwargs):
         super(Length, self).__init__(**kwargs)
         self.exact = exact
         self.min = min
         self.max = max
+        if error is not None:
+            for key in ['exact', 'min', 'max', 'range']:
+                self._error_messages[key] = error
 
     def _fail(self, key, **kwargs):
         super(Length, self)._fail(key, exact=self.exact, min=self.min, max=self.max,

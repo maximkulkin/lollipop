@@ -120,6 +120,21 @@ class TestRange:
             Range(min=1, max=5, error_messages={'range': message})(0)
         assert exc_info.value.messages == message.format(data=0, min=1, max=5)
 
+    def test_customizing_all_error_messages_at_once(self):
+        message = 'Value is invalid'
+
+        with raises(ValidationError) as exc_info:
+            Range(min=1, error=message)(0)
+        assert exc_info.value.messages == message
+
+        with raises(ValidationError) as exc_info:
+            Range(max=1, error=message)(2) == message
+        assert exc_info.value.messages == message
+
+        with raises(ValidationError) as exc_info:
+            Range(min=1, max=5, error=message)(0) == message
+        assert exc_info.value.messages == message
+
 
 class TestLength:
     def test_matching_exact_value(self):
@@ -205,6 +220,25 @@ class TestLength:
             Length(min=1, max=5, error_messages={'range': message})([])
         assert exc_info.value.messages == \
             message.format(data=[], length=0, min=1, max=5)
+
+    def test_customizing_all_error_messages_at_once(self):
+        message = 'Value is invalid'
+
+        with raises(ValidationError) as exc_info:
+            Length(exact=1, error=message)([])
+        assert exc_info.value.messages == message
+
+        with raises(ValidationError) as exc_info:
+            Length(min=1, error=message)([])
+        assert exc_info.value.messages == message
+
+        with raises(ValidationError) as exc_info:
+            Length(max=1, error=message)([1, 2]) == message
+        assert exc_info.value.messages == message
+
+        with raises(ValidationError) as exc_info:
+            Length(min=1, max=5, error=message)([]) == message
+        assert exc_info.value.messages == message
 
 
 class TestNoneOf:
