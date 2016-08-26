@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
 from lollipop.utils import is_list, is_dict, call_with_context
-from lollipop.compat import string_types, int_types, iteritems
+from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
 
@@ -968,66 +968,86 @@ class Object(Type):
         'unknown': 'Unknown field',
     }
 
-    def __init__(self, bases_or_fields=None, fields=None, constructor=dict,
-                 default_field_type=AttributeField,
-                 allow_extra_fields=True, only=None, exclude=None,
-                 immutable=False,
+    def __init__(self, bases_or_fields=None, fields=None, constructor=None,
+                 default_field_type=None,
+                 allow_extra_fields=None, only=None, exclude=None,
+                 immutable=None, ordered=None,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
         if bases_or_fields is None and fields is None:
             raise ValueError('No base and/or fields are specified')
         if isinstance(bases_or_fields, Object):
-            self.bases = [bases_or_fields]
+            bases = [bases_or_fields]
         if is_list(bases_or_fields) and \
                 all([isinstance(base, Object) for base in bases_or_fields]):
-            self.bases = bases_or_fields
+            bases = bases_or_fields
         elif is_list(bases_or_fields) or is_dict(bases_or_fields):
             if fields is None:
-                self.bases = None
+                bases = []
                 fields = bases_or_fields
             else:
                 raise ValueError('Unknown base object type: %r' % bases_or_fields)
 
-        self._fields = [
-            (name, self._normalize_field(field, default_field_type))
-            for name, field in (iteritems(fields) if is_dict(fields) else fields)
-        ]
-        self.__fields = None
+        self.bases = bases
+
+        if default_field_type is None:
+            default_field_type = self._inherited_value('default_field_type')
+
+        if constructor is None:
+            constructor = self._inherited_value('constructor')
+
+        if allow_extra_fields is None:
+            allow_extra_fields = self._inherited_value('allow_extra_fields')
+
+        if immutable is None:
+            immutable = self._inherited_value('immutable')
+
+        if ordered is None:
+            ordered = self._inherited_value('ordered')
+
+        self.default_field_type = default_field_type
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
-        self.only = only
-        self.exclude = exclude
         self.immutable = immutable
+        self.ordered = ordered
+        self.fields = self._resolve_fields(self.bases, fields, only, exclude)
 
-    def _normalize_field(self, value, default_field_type):
+    def _inherited_value(self, attr):
+        for base in self.bases:
+            value = getattr(base, attr)
+            if value is not None:
+                return value
+        return None
+
+    def _normalize_field(self, value):
         if isinstance(value, Field):
             return value
         if not isinstance(value, Type):
             value = Constant(value)
-        return default_field_type(value)
+        return (self.default_field_type or AttributeField)(value)
 
-    # Resolved at time of usage
-    @property
-    def fields(self):
-        if self.__fields is None:
-            fields = []
-            if self.bases is not None:
-                for base in self.bases:
-                    fields += base.fields
+    def _resolve_fields(self, bases, fields, only=None, exclude=None):
+        all_fields = []
+        if bases is not None:
+            for base in bases:
+                all_fields += list(iteritems(base.fields))
 
-            fields += self._fields
+        all_fields += [
+            (name, self._normalize_field(field))
+            for name, field in (iteritems(fields) if is_dict(fields) else fields)
+        ]
 
-            if self.only is not None:
-                fields = [(name, field) for name, field in fields
-                          if name in self.only]
+        if only is not None:
+            all_fields = [(name, field)
+                          for name, field in all_fields
+                          if name in only]
 
-            if self.exclude is not None:
-                fields = [(name, field) for name, field in fields
-                          if name not in self.exclude]
+        if exclude is not None:
+            all_fields = [(name, field)
+                          for name, field in all_fields
+                          if name not in exclude]
 
-            self.__fields = fields
-
-        return self.__fields
+        return OrderedDict(all_fields)
 
     def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -1039,7 +1059,7 @@ class Object(Type):
         errors_builder = ValidationErrorBuilder()
         result = {}
 
-        for name, field in self.fields:
+        for name, field in iteritems(self.fields):
             try:
                 loaded = field.load(name, data, *args, **kwargs)
                 if loaded != MISSING:
@@ -1047,15 +1067,18 @@ class Object(Type):
             except ValidationError as ve:
                 errors_builder.add_error(name, ve.messages)
 
-        if not self.allow_extra_fields:
-            field_names = [name for name, _ in self.fields]
+        if self.allow_extra_fields is False:
+            field_names = [name for name, _ in iteritems(self.fields)]
             for name in data:
                 if name not in field_names:
                     errors_builder.add_error(name, self._error_messages['unknown'])
 
         errors_builder.raise_errors()
 
-        return self.constructor(**super(Object, self).load(result, *args, **kwargs))
+        result = super(Object, self).load(result, *args, **kwargs)
+        if self.constructor:
+            result = self.constructor(**result)
+        return result
 
     def load_into(self, obj, data, inplace=True, *args, **kwargs):
         """Load data and update existing object.
@@ -1080,7 +1103,7 @@ class Object(Type):
         errors_builder = ValidationErrorBuilder()
 
         data1 = {}
-        for name, field in self.fields:
+        for name, field in iteritems(self.fields):
             try:
                 if name in data:
                     # Load new data
@@ -1095,8 +1118,8 @@ class Object(Type):
             except ValidationError as ve:
                 errors_builder.add_error(name, ve.messages)
 
-        if not self.allow_extra_fields:
-            field_names = [name for name, _ in self.fields]
+        if self.allow_extra_fields is False:
+            field_names = [name for name, _ in iteritems(self.fields)]
             for name in data:
                 if name not in field_names:
                     errors_builder.add_error(name, self._error_messages['unknown'])
@@ -1106,9 +1129,11 @@ class Object(Type):
         data2 = super(Object, self).load(data1, *args, **kwargs)
 
         if self.immutable or not inplace:
-            result = self.constructor(**data2)
+            result = data2
+            if self.constructor:
+                result = self.constructor(**result)
         else:
-            for name, field in self.fields:
+            for name, field in iteritems(self.fields):
                 if name not in data:
                     continue
 
@@ -1141,9 +1166,9 @@ class Object(Type):
             self._fail('required')
 
         errors_builder = ValidationErrorBuilder()
-        result = {}
+        result = OrderedDict() if self.ordered else {}
 
-        for name, field in self.fields:
+        for name, field in iteritems(self.fields):
             try:
                 dumped = field.dump(name, obj, *args, **kwargs)
                 if dumped != MISSING:

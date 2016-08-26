@@ -19,3 +19,8 @@ else:
     iterkeys = lambda d: d.keys()
     itervalues = lambda d: d.values()
     iteritems = lambda d: d.items()
+
+if PY26:
+    from .ordereddict import OrderedDict
+else:
+    from collections import OrderedDict
