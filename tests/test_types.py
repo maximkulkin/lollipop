@@ -1,6 +1,7 @@
 import pytest
 from functools import partial
 import datetime
+from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, Constant, Object, \
@@ -1293,6 +1294,20 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert d.immutable == True
         assert e.immutable == False
 
+    def test_ordered_is_unset_by_default(self):
+        assert Object({'x': String()}).ordered is None
+
+    def test_iheriting_ordered_from_first_base_class_that_has_it_set(self):
+        a = Object({'a': String()})
+        b = Object({'b': String()}, ordered=True)
+        c = Object({'c': Integer()}, ordered=False)
+
+        d = Object([a, b, c], {'d': Boolean()})
+        e = Object([a, c, b], {'e': Boolean()})
+
+        assert d.ordered == True
+        assert e.ordered == False
+
     def test_loading_dict_value(self):
         assert Object({'foo': String(), 'bar': Integer()})\
             .load({'foo': 'hello', 'bar': 123}) == {'foo': 'hello', 'bar': 123}
@@ -1714,6 +1729,12 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
     def test_shortcut_for_specifying_constant_fields(self):
         MyType = Object({'foo': 'hello'})
         assert MyType.dump({}) == {'foo': 'hello'}
+
+    def test_dumping_fields_in_declared_order_if_ordered_is_True(self):
+        assert list(Object([('bar', Integer()), ('foo', String())], ordered=True)\
+            .dump(AttributeDummy()).keys()) == ['bar', 'foo']
+        assert list(Object(OrderedDict([('foo', String()), ('bar', Integer())]), ordered=True)\
+            .dump(AttributeDummy()).keys()) == ['foo', 'bar']
 
 
 class TestOptional:

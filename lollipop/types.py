@@ -971,7 +971,7 @@ class Object(Type):
     def __init__(self, bases_or_fields=None, fields=None, constructor=None,
                  default_field_type=None,
                  allow_extra_fields=None, only=None, exclude=None,
-                 immutable=None,
+                 immutable=None, ordered=None,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
         if bases_or_fields is None and fields is None:
@@ -1002,10 +1002,14 @@ class Object(Type):
         if immutable is None:
             immutable = self._inherited_value('immutable')
 
+        if ordered is None:
+            ordered = self._inherited_value('ordered')
+
         self.default_field_type = default_field_type
         self.constructor = constructor
         self.allow_extra_fields = allow_extra_fields
         self.immutable = immutable
+        self.ordered = ordered
         self.fields = self._resolve_fields(self.bases, fields, only, exclude)
 
     def _inherited_value(self, attr):
@@ -1162,7 +1166,7 @@ class Object(Type):
             self._fail('required')
 
         errors_builder = ValidationErrorBuilder()
-        result = {}
+        result = OrderedDict() if self.ordered else {}
 
         for name, field in iteritems(self.fields):
             try:
