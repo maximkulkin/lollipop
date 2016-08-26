@@ -15,7 +15,8 @@ __all__ = [
 #:     {'field1': 'Field error', '_schema': 'Whole object error'}
 SCHEMA = '_schema'
 
-MISSING_ERROR_MESSAGE = 'Error message "{key}" in class {class_name} does not exist'
+MISSING_ERROR_MESSAGE = \
+    'Error message "{error_key}" in class {class_name} does not exist'
 
 
 class ValidationError(Exception):
