@@ -1234,6 +1234,65 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
     valid_data = {'foo': 'hello', 'bar': 123}
     valid_value = {'foo': 'hello', 'bar': 123}
 
+    def test_default_field_type_is_unset_by_default(self):
+        assert Object({'x': String()}).default_field_type is None
+
+    def test_inheriting_default_field_type_from_first_base_class_that_has_it_set(self):
+        field_type = MethodField
+        a = Object({'a': String()})
+        b = Object({'b': String()}, default_field_type=field_type)
+        c = Object({'c': Integer()}, default_field_type=AttributeField)
+
+        d = Object([a, b, c], {'d': Boolean()})
+
+        assert d.default_field_type == field_type
+
+    def test_constructor_is_unset_by_default(self):
+        assert Object({'x': String()}).constructor is None
+
+    def test_inheriting_constructor_from_first_base_class_that_has_it_set(self):
+        class Foo:
+            pass
+
+        class Bar:
+            pass
+
+        a = Object({'a': String()})
+        b = Object({'b': String()}, constructor=Foo)
+        c = Object({'c': Integer()}, constructor=Bar)
+
+        d = Object([a, b, c], {'d': Boolean()})
+
+        assert d.constructor == Foo
+
+    def test_allow_extra_fields_is_unset_by_default(self):
+        assert Object({'x': String()}).allow_extra_fields is None
+
+    def test_inheriting_allow_extra_fields_from_first_base_class_that_has_it_set(self):
+        a = Object({'a': String()})
+        b = Object({'b': String()}, allow_extra_fields=True)
+        c = Object({'c': Integer()}, allow_extra_fields=False)
+
+        d = Object([a, b, c], {'d': Boolean()})
+        e = Object([a, c, b], {'e': Boolean()})
+
+        assert d.allow_extra_fields == True
+        assert e.allow_extra_fields == False
+
+    def test_immutable_is_unset_by_default(self):
+        assert Object({'x': String()}).immutable is None
+
+    def test_inheriting_immutable_from_first_base_class_that_has_it_set(self):
+        a = Object({'a': String()})
+        b = Object({'b': String()}, immutable=True)
+        c = Object({'c': Integer()}, immutable=False)
+
+        d = Object([a, b, c], {'d': Boolean()})
+        e = Object([a, c, b], {'e': Boolean()})
+
+        assert d.immutable == True
+        assert e.immutable == False
+
     def test_loading_dict_value(self):
         assert Object({'foo': String(), 'bar': Integer()})\
             .load({'foo': 'hello', 'bar': 123}) == {'foo': 'hello', 'bar': 123}
