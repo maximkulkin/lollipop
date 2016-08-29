@@ -507,6 +507,8 @@ class OneOf(Type):
 
     default_error_messages = {
         'invalid': 'Invalid data',
+        'unknown_type_id': 'Unknown type ID: {type_id}',
+        'no_type_matched': 'No type matched',
     }
 
     def __init__(self, types,
@@ -525,7 +527,7 @@ class OneOf(Type):
         if is_dict(self.types) and self.load_hint:
             type_id = self.load_hint(data)
             if type_id not in self.types:
-                self._fail('invalid')
+                self._fail('unknown_type_id', type_id=type_id)
 
             item_type = self.types[type_id]
             result = item_type.load(data, *args, **kwargs)
@@ -538,7 +540,7 @@ class OneOf(Type):
                 except ValidationError as ve:
                     pass
 
-            self._fail('invalid')
+            self._fail('no_type_matched')
 
     def dump(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -547,7 +549,7 @@ class OneOf(Type):
         if is_dict(self.types) and self.dump_hint:
             type_id = self.dump_hint(data)
             if type_id not in self.types:
-                self._fail('invalid')
+                self._fail('unknown_type_id', type_id=type_id)
 
             item_type = self.types[type_id]
             result = item_type.dump(data, *args, **kwargs)
@@ -560,7 +562,7 @@ class OneOf(Type):
                 except ValidationError as ve:
                     pass
 
-            self._fail('invalid')
+            self._fail('no_type_matched')
 
 
 class DictWithDefault(object):

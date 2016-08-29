@@ -5,7 +5,7 @@ from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, Constant, Object, \
-    Optional, LoadOnly, DumpOnly, dict_value_hint
+    Optional, LoadOnly, DumpOnly, type_name_hint, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
@@ -620,7 +620,7 @@ class TestOneOf:
         one_of = OneOf([Integer(), String()])
         with pytest.raises(ValidationError) as exc_info:
             one_of.load({'foo': 'bar'})
-        assert exc_info.value.messages == OneOf.default_error_messages['invalid']
+        assert exc_info.value.messages == OneOf.default_error_messages['no_type_matched']
 
     def test_loading_raises_ValidationError_if_deserialized_value_has_errors(self):
         message = 'Something is wrong'
@@ -632,7 +632,15 @@ class TestOneOf:
         ])
         with pytest.raises(ValidationError) as exc_info:
             one_of.load({'bar': {'baz': 123}})
-        assert exc_info.value.messages == 'Invalid data'
+        assert exc_info.value.messages == OneOf.default_error_messages['no_type_matched']
+
+    def test_loading_raises_ValidationError_if_type_hint_is_unknown(self):
+        one_of = OneOf({'foo': String(), 'bar': Integer()},
+                       load_hint=dict_value_hint('type'))
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.load({'type': 'baz'})
+        assert exc_info.value.messages == \
+            OneOf.default_error_messages['unknown_type_id'].format(type_id='baz')
 
     def test_loading_with_type_hinting(self):
         Foo = namedtuple('Foo', ['foo'])
@@ -677,7 +685,18 @@ class TestOneOf:
         one_of = OneOf([Integer(), String()])
         with pytest.raises(ValidationError) as exc_info:
             one_of.dump({'foo': 'bar'})
-        assert exc_info.value.messages == OneOf.default_error_messages['invalid']
+        assert exc_info.value.messages == OneOf.default_error_messages['no_type_matched']
+
+    def test_dumping_raises_ValidationError_if_type_hint_is_unknown(self):
+        class Baz:
+            pass
+
+        one_of = OneOf({'foo': Integer(), 'bar': String()},
+                       dump_hint=type_name_hint)
+        with pytest.raises(ValidationError) as exc_info:
+            one_of.dump(Baz())
+        assert exc_info.value.messages == \
+            OneOf.default_error_messages['unknown_type_id'].format(type_id='Baz')
 
     def test_dumping_raises_ValidationError_if_serialized_value_has_errors(self):
         Baz = namedtuple('Baz', ['baz'])
@@ -692,7 +711,7 @@ class TestOneOf:
         ])
         with pytest.raises(ValidationError) as exc_info:
             one_of.dump(Bar(bar=Baz(baz='hello')))
-        assert exc_info.value.messages == 'Invalid data'
+        assert exc_info.value.messages == OneOf.default_error_messages['no_type_matched']
 
     def test_dumping_with_type_hinting(self):
         Foo = namedtuple('Foo', ['foo'])
