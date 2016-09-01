@@ -1245,6 +1245,12 @@ class AlwaysInvalidType(Type):
 
 
 class SpyField(Field):
+    def get_value(self, name, obj, context=None):
+        return 123
+
+    def set_value(self, name, obj, value, context=None):
+        pass
+
     def load(self, name, data, context=None):
         self.loaded = (name, data)
         return data
@@ -1252,6 +1258,10 @@ class SpyField(Field):
     def dump(self, name, obj, context=None):
         self.dumped = (name, obj)
         return obj
+
+    def load_into(self, obj, name, data, inplace=True, context=None):
+        self.loaded_into = (obj, name, data)
+        self.load_into_context = context
 
 
 class TestObject(RequiredTestsMixin, ValidationTestsMixin):
@@ -1577,15 +1587,35 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert result.bar.baz == 'goodbye'
 
     def test_loading_values_into_existing_objects_ignores_missing_fields(self):
-        obj = AttributeDummy()
-        obj.foo = 'hello'
-        obj.bar = 123
+        obj = AttributeDummy(foo='hello', bar=123)
 
         Object({'foo': String(), 'bar': Integer()})\
             .load_into(obj, {'foo': 'goodbye'})
 
         assert obj.foo == 'goodbye'
         assert obj.bar == 123
+
+    def test_loading_MISSING_into_existing_object_does_not_do_anything(self):
+        obj = AttributeDummy(foo='hello', bar=123)
+        Object({'foo': String()}).load_into(AttributeDummy(), MISSING)
+
+        assert obj.foo == 'hello'
+        assert obj.bar == 123
+
+    def test_loading_None_into_existing_objects_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String()}).load_into(AttributeDummy(), None)
+        assert exc_info.value.messages == Type.default_error_messages['required']
+
+    def test_loading_None_into_field_of_existing_object_passes_None_to_field(self):
+        obj = AttributeDummy()
+        field = SpyField(Any())
+
+        data = {'foo': None, 'bar': 456}
+
+        Object({'foo': field, 'bar': Integer()}).load_into(obj, data)
+
+        assert field.loaded_into == (obj, 'foo', data)
 
     def test_loading_values_into_existing_objects_raises_ValidationError_if_data_contains_errors(self):
         obj = AttributeDummy()

@@ -1115,8 +1115,11 @@ class Object(Type):
         if obj is None:
             raise ValueError('Load target should not be None')
 
-        if data is MISSING or data is None:
+        if data is MISSING:
             return
+
+        if data is None:
+            self._fail('required')
 
         if not is_dict(data):
             self._fail('invalid')
