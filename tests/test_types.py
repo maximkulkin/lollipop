@@ -10,6 +10,7 @@ from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
 from collections import namedtuple
+import uuid
 
 
 def validator(predicate, message='Something went wrong'):
@@ -29,6 +30,10 @@ def constant_fail_validator(message):
 def is_odd_validator():
     """Returns validator that checks if integer is odd"""
     return validator(lambda x: x % 2 == 1, 'Value should be odd')
+
+
+def random_string():
+    return str(uuid.uuid4())
 
 
 class SpyValidator(Validator):
@@ -1790,6 +1795,29 @@ class TestOptional:
     def test_overriding_None_value_on_load(self):
         assert Optional(Any(), load_default='foo').load(None) == 'foo'
 
+    def test_using_function_to_override_value_on_load(self):
+        result = Optional(Any(), load_default=random_string).load(None)
+        assert isinstance(result, str)
+
+    def test_loading_passes_context_to_override_function(self):
+        class Spy:
+            def __init__(self):
+                self.context = None
+                self.called = False
+
+            def generate_value(self, context):
+                self.called = True
+                self.context = context
+                return 123
+
+        spy = Spy()
+        context = object()
+
+        Optional(Any(), load_default=spy.generate_value).load(None, context)
+
+        assert spy.called is True
+        assert spy.context is context
+
     def test_dumping_value_calls_dump_of_inner_type(self):
         inner_type = SpyType()
         Optional(inner_type).dump('foo')
@@ -1822,6 +1850,29 @@ class TestOptional:
 
     def test_overriding_None_value_on_dump(self):
         assert Optional(Any(), dump_default='foo').dump(None) == 'foo'
+
+    def test_using_function_to_override_value_on_dump(self):
+        result = Optional(Any(), dump_default=random_string).dump(None)
+        assert isinstance(result, str)
+
+    def test_dumping_passes_context_to_override_function(self):
+        class Spy:
+            def __init__(self):
+                self.context = None
+                self.called = False
+
+            def generate_value(self, context):
+                self.called = True
+                self.context = context
+                return 123
+
+        spy = Spy()
+        context = object()
+
+        Optional(Any(), dump_default=spy.generate_value).dump(None, context)
+
+        assert spy.called is True
+        assert spy.context is context
 
 
 class TestLoadOnly:

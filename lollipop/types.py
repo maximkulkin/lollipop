@@ -1224,8 +1224,12 @@ class Optional(Type):
         })
 
     :param Type inner_type: Actual type that should be optional.
-    :param load_default: Value to use when value is missing on deserialization.
-    :param dump_default: Value to use when value is missing on serialization.
+    :param load_default: Value or callable. If value - it will be used when value
+        is missing on deserialization. If callable - it will be called with no
+        arguments to get value to use when value is missing on deserialization.
+    :param dump_default: Value or callable. If value - it will be used when value
+        is missing on serialization. If callable - it will be called with no
+        arguments to get value to use when value is missing on serialization.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
     def __init__(self, inner_type,
@@ -1233,22 +1237,26 @@ class Optional(Type):
                  **kwargs):
         super(Optional, self).__init__(**kwargs)
         self.inner_type = inner_type
+        if not callable(load_default):
+            load_default = constant(load_default)
+        if not callable(dump_default):
+            dump_default = constant(dump_default)
         self.load_default = load_default
         self.dump_default = dump_default
 
-    def load(self, data, *args, **kwargs):
+    def load(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return self.load_default
+            return call_with_context(self.load_default, context)
         return super(Optional, self).load(
-            self.inner_type.load(data, *args, **kwargs),
+            self.inner_type.load(data, context=context, *args, **kwargs),
             *args, **kwargs
         )
 
-    def dump(self, data, *args, **kwargs):
+    def dump(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return self.dump_default
+            return call_with_context(self.dump_default, context)
         return super(Optional, self).dump(
-            self.inner_type.dump(data, *args, **kwargs),
+            self.inner_type.dump(data, context=context, *args, **kwargs),
             *args, **kwargs
         )
 
