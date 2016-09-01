@@ -29,3 +29,9 @@ Errors
 
 .. automodule:: lollipop.errors
     :members:
+
+Type registry
+=============
+
+.. automodule:: lollipop.type_registry
+    :members:
