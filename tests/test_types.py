@@ -1640,6 +1640,14 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
                 .load_into(obj, {'foo': 'goodbye'})
         assert exc_info.value.messages == error
 
+    def test_loading_values_into_existing_objects_annotates_field_errors_with_field_names(self):
+        error = 'My error'
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String(),
+                    'bar': Integer(validate=constant_fail_validator(error))})\
+                .load_into(AttributeDummy(), {'bar': 111})
+        assert exc_info.value.messages == {'bar': error}
+
     def test_loading_values_into_existing_nested_objects(self):
         class Foo:
             def __init__(self, bar):

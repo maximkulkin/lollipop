@@ -1161,7 +1161,10 @@ class Object(Type):
                 if name not in data:
                     continue
 
-                field.set_value(name, obj, data2.get(name, MISSING))
+                try:
+                    field.set_value(name, obj, data2.get(name, MISSING))
+                except ValidationError as ve:
+                    raise ValidationError({name: ve.messages})
 
             result = obj
 
