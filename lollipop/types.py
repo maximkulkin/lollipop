@@ -444,7 +444,7 @@ class Tuple(Type):
     def __repr__(self):
         return '<{klass} of {item_types}>'.format(
             klass=self.__class__.__name__,
-            item_type=repr(self.item_types),
+            item_types=repr(self.item_types),
         )
 
 
@@ -564,6 +564,12 @@ class OneOf(Type):
 
             self._fail('no_type_matched')
 
+    def __repr__(self):
+        return '<{klass} {types}>'.format(
+            klass=self.__class__.__name__,
+            types=repr(self.types),
+        )
+
 
 class DictWithDefault(object):
     def __init__(self, values={}, default=None):
@@ -660,7 +666,10 @@ class Dict(Type):
         return super(Dict, self).dump(result, *args, **kwargs)
 
     def __repr__(self):
-        return '<{klass}>'.format(klass=self.__class__.__name__)
+        return '<{klass} of {value_types}>'.format(
+            klass=self.__class__.__name__,
+            value_types=repr(self.value_types),
+        )
 
 
 class Constant(Type):
@@ -693,6 +702,13 @@ class Constant(Type):
 
     def dump(self, value, *args, **kwargs):
         return self.field_type.dump(self.value, *args, **kwargs)
+
+    def __repr__(self):
+        return '<{klass} {value} of type {field_type}>'.format(
+            klass=self.__class__.__name__,
+            value=repr(self.value),
+            field_type=repr(self.field_type),
+        )
 
 
 class Field(ErrorMessagesMixin):
@@ -1180,6 +1196,12 @@ class Object(Type):
         errors_builder.raise_errors()
 
         return super(Object, self).dump(result, *args, **kwargs)
+
+    def __repr__(self):
+        return '<{klass} {fields}>'.format(
+            klass=self.__class__.__name__,
+            fields=repr(self.fields),
+        )
 
 
 class Optional(Type):
