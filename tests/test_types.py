@@ -1438,18 +1438,45 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == {'foo': message, 'bar': 'Value is required'}
 
     def test_loading_only_specified_fields(self):
-        Type1 = Object({'foo': String(), 'bar': String()})
-        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
-                       only=['foo', 'baz'])
-        assert Type2.load({'foo': 'hello', 'bar': 'goodbye',
-                           'baz': 123, 'bam': 456}) == {'foo': 'hello', 'baz': 123}
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       only=['foo'])
+        assert 'foo' in Type3.fields
+        assert 'bar' not in Type3.fields
+        assert Type3.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == \
+            {'foo': 'hello', 'baz': 123, 'bam': 456}
 
-    def test_loading_all_but_specified_fields(self):
-        Type1 = Object({'foo': String(), 'bar': String()})
-        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
+    def test_loading_only_specified_fields_does_not_affect_own_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       only=['foo', 'baz'])
+        assert 'baz' in Type3.fields
+        assert Type3.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == \
+            {'foo': 'hello', 'baz': 123, 'bam': 456}
+
+    def test_loading_all_but_specified_base_class_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       exclude=['foo'])
+        assert 'foo' not in Type3.fields
+        assert Type3.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == \
+            {'bar': 'goodbye', 'baz': 123, 'bam': 456}
+
+    def test_loading_all_but_specified_fields_does_not_affect_own_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
                        exclude=['foo', 'baz'])
-        assert Type2.load({'foo': 'hello', 'bar': 'goodbye',
-                           'baz': 123, 'bam': 456}) == {'bar': 'goodbye', 'bam': 456}
+        assert 'baz' in Type3.fields
+        assert Type3.load({'foo': 'hello', 'bar': 'goodbye',
+                           'baz': 123, 'bam': 456}) == \
+            {'bar': 'goodbye', 'baz': 123, 'bam': 456}
 
     def test_loading_values_into_existing_object(self):
         obj = AttributeDummy()
@@ -1772,21 +1799,43 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert Type3.dump(MyData(foo='hello', bar=123, baz=True)) == \
             {'foo': 'hello', 'bar': 123, 'baz': True}
 
-    def test_dumping_only_specified_fields(self):
-        Type1 = Object({'foo': String(), 'bar': String()})
-        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
-                       only=['foo', 'baz'])
+    def test_dumping_only_specified_fields_of_base_classes(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       only=['foo'])
         MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
-        assert Type2.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
-            {'foo': 'hello', 'baz': 123}
+        assert Type3.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'foo': 'hello', 'baz': 123, 'bam': 456}
 
-    def test_dumping_all_but_specified_fields(self):
-        Type1 = Object({'foo': String(), 'bar': String()})
-        Type2 = Object(Type1, {'baz': Integer(), 'bam': Integer()},
-                       exclude=['foo', 'baz'])
+    def test_dumping_only_specified_fields_does_not_affect_own_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       only=['foo', 'baz'])
+        assert 'baz' in Type3.fields
         MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
-        assert Type2.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
-            {'bar': 'goodbye', 'bam': 456}
+        assert Type3.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'foo': 'hello', 'baz': 123, 'bam': 456}
+
+    def test_dumping_all_but_specified_base_class_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       exclude=['foo'])
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
+        assert Type3.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'bar': 'goodbye', 'baz': 123, 'bam': 456}
+
+    def test_dumping_all_but_specified_fields_does_not_affect_own_fields(self):
+        Type1 = Object({'foo': String()})
+        Type2 = Object({'bar': String()})
+        Type3 = Object([Type1, Type2], {'baz': Integer(), 'bam': Integer()},
+                       exclude=['foo', 'baz'])
+        assert 'baz' in Type3.fields
+        MyData = namedtuple('MyData', ['foo', 'bar', 'baz', 'bam'])
+        assert Type3.dump(MyData(foo='hello', bar='goodbye', baz=123, bam=456)) == \
+            {'bar': 'goodbye', 'baz': 123, 'bam': 456}
 
     def test_shortcut_for_specifying_constant_fields(self):
         MyType = Object({'foo': 'hello'})
