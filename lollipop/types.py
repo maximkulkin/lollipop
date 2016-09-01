@@ -976,6 +976,9 @@ class Object(Type):
         fields (own or inherited) won't be used.
     :param list exclude: List of field names to exclude from this object.
         All other fields (own or inherited) will be included.
+    :param bool ordered: Serialize data into OrderedDict following fields order.
+        Fields in this case should be declared with a dictionary which also
+        supports ordering or with a list of tuples.
     :param bool immutable: If False, object is allowed to be modified in-place;
         if True - always create a copy with `constructor`.
     :param kwargs: Same keyword arguments as for :class:`Type`.
