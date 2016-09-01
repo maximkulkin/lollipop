@@ -10,6 +10,7 @@ from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
 from collections import namedtuple
+import uuid
 
 
 def validator(predicate, message='Something went wrong'):
@@ -29,6 +30,10 @@ def constant_fail_validator(message):
 def is_odd_validator():
     """Returns validator that checks if integer is odd"""
     return validator(lambda x: x % 2 == 1, 'Value should be odd')
+
+
+def random_string():
+    return str(uuid.uuid4())
 
 
 class SpyValidator(Validator):
@@ -1240,6 +1245,12 @@ class AlwaysInvalidType(Type):
 
 
 class SpyField(Field):
+    def get_value(self, name, obj, context=None):
+        return 123
+
+    def set_value(self, name, obj, value, context=None):
+        pass
+
     def load(self, name, data, context=None):
         self.loaded = (name, data)
         return data
@@ -1247,6 +1258,10 @@ class SpyField(Field):
     def dump(self, name, obj, context=None):
         self.dumped = (name, obj)
         return obj
+
+    def load_into(self, obj, name, data, inplace=True, context=None):
+        self.loaded_into = (obj, name, data)
+        self.load_into_context = context
 
 
 class TestObject(RequiredTestsMixin, ValidationTestsMixin):
@@ -1572,15 +1587,35 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
         assert result.bar.baz == 'goodbye'
 
     def test_loading_values_into_existing_objects_ignores_missing_fields(self):
-        obj = AttributeDummy()
-        obj.foo = 'hello'
-        obj.bar = 123
+        obj = AttributeDummy(foo='hello', bar=123)
 
         Object({'foo': String(), 'bar': Integer()})\
             .load_into(obj, {'foo': 'goodbye'})
 
         assert obj.foo == 'goodbye'
         assert obj.bar == 123
+
+    def test_loading_MISSING_into_existing_object_does_not_do_anything(self):
+        obj = AttributeDummy(foo='hello', bar=123)
+        Object({'foo': String()}).load_into(AttributeDummy(), MISSING)
+
+        assert obj.foo == 'hello'
+        assert obj.bar == 123
+
+    def test_loading_None_into_existing_objects_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String()}).load_into(AttributeDummy(), None)
+        assert exc_info.value.messages == Type.default_error_messages['required']
+
+    def test_loading_None_into_field_of_existing_object_passes_None_to_field(self):
+        obj = AttributeDummy()
+        field = SpyField(Any())
+
+        data = {'foo': None, 'bar': 456}
+
+        Object({'foo': field, 'bar': Integer()}).load_into(obj, data)
+
+        assert field.loaded_into == (obj, 'foo', data)
 
     def test_loading_values_into_existing_objects_raises_ValidationError_if_data_contains_errors(self):
         obj = AttributeDummy()
@@ -1604,6 +1639,14 @@ class TestObject(RequiredTestsMixin, ValidationTestsMixin):
                    validate=constant_fail_validator(error))\
                 .load_into(obj, {'foo': 'goodbye'})
         assert exc_info.value.messages == error
+
+    def test_loading_values_into_existing_objects_annotates_field_errors_with_field_names(self):
+        error = 'My error'
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String(),
+                    'bar': Integer(validate=constant_fail_validator(error))})\
+                .load_into(AttributeDummy(), {'bar': 111})
+        assert exc_info.value.messages == {'bar': error}
 
     def test_loading_values_into_existing_nested_objects(self):
         class Foo:
@@ -1790,6 +1833,29 @@ class TestOptional:
     def test_overriding_None_value_on_load(self):
         assert Optional(Any(), load_default='foo').load(None) == 'foo'
 
+    def test_using_function_to_override_value_on_load(self):
+        result = Optional(Any(), load_default=random_string).load(None)
+        assert isinstance(result, str)
+
+    def test_loading_passes_context_to_override_function(self):
+        class Spy:
+            def __init__(self):
+                self.context = None
+                self.called = False
+
+            def generate_value(self, context):
+                self.called = True
+                self.context = context
+                return 123
+
+        spy = Spy()
+        context = object()
+
+        Optional(Any(), load_default=spy.generate_value).load(None, context)
+
+        assert spy.called is True
+        assert spy.context is context
+
     def test_dumping_value_calls_dump_of_inner_type(self):
         inner_type = SpyType()
         Optional(inner_type).dump('foo')
@@ -1822,6 +1888,29 @@ class TestOptional:
 
     def test_overriding_None_value_on_dump(self):
         assert Optional(Any(), dump_default='foo').dump(None) == 'foo'
+
+    def test_using_function_to_override_value_on_dump(self):
+        result = Optional(Any(), dump_default=random_string).dump(None)
+        assert isinstance(result, str)
+
+    def test_dumping_passes_context_to_override_function(self):
+        class Spy:
+            def __init__(self):
+                self.context = None
+                self.called = False
+
+            def generate_value(self, context):
+                self.called = True
+                self.context = context
+                return 123
+
+        spy = Spy()
+        context = object()
+
+        Optional(Any(), dump_default=spy.generate_value).dump(None, context)
+
+        assert spy.called is True
+        assert spy.context is context
 
 
 class TestLoadOnly:

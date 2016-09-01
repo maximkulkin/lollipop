@@ -1,4 +1,5 @@
-from lollipop.utils import call_with_context, to_camel_case, to_snake_case
+from lollipop.utils import call_with_context, to_camel_case, to_snake_case, \
+    constant, identity
 
 
 class ObjMethodDummy:
@@ -80,3 +81,18 @@ class TestToSnakeCase:
     def test_converting_camel_case_to_snake_case(self):
         assert to_snake_case('fooBar') == 'foo_bar'
         assert to_snake_case('foo_bar') == 'foo_bar'
+
+
+class TestIdentity:
+    def test_identity_returns_its_argument(self):
+        assert identity(123) == 123
+        assert identity('foo') == 'foo'
+
+
+class TestConstant:
+    def test_constant_returns_function_that_takes_any_arguments_and_always_returns_given_value(self):
+        f = constant(123)
+        assert f() == 123
+        assert f(456) == 123
+        assert f(1, 3, 5) == 123
+        assert f(1, foo='bar') == 123

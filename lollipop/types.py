@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from lollipop.utils import is_list, is_dict, call_with_context
+from lollipop.utils import is_list, is_dict, call_with_context, constant, identity
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -444,7 +444,7 @@ class Tuple(Type):
     def __repr__(self):
         return '<{klass} of {item_types}>'.format(
             klass=self.__class__.__name__,
-            item_type=repr(self.item_types),
+            item_types=repr(self.item_types),
         )
 
 
@@ -464,7 +464,7 @@ def dict_value_hint(key, mapper=None):
     To be used as a type hint in :class:`OneOf`.
     """
     if mapper is None:
-        mapper = lambda x: x
+        mapper = identity
 
     def hinter(data):
         return mapper(data.get(key))
@@ -564,6 +564,12 @@ class OneOf(Type):
 
             self._fail('no_type_matched')
 
+    def __repr__(self):
+        return '<{klass} {types}>'.format(
+            klass=self.__class__.__name__,
+            types=repr(self.types),
+        )
+
 
 class DictWithDefault(object):
     def __init__(self, values={}, default=None):
@@ -660,7 +666,10 @@ class Dict(Type):
         return super(Dict, self).dump(result, *args, **kwargs)
 
     def __repr__(self):
-        return '<{klass}>'.format(klass=self.__class__.__name__)
+        return '<{klass} of {value_types}>'.format(
+            klass=self.__class__.__name__,
+            value_types=repr(self.value_types),
+        )
 
 
 class Constant(Type):
@@ -693,6 +702,13 @@ class Constant(Type):
 
     def dump(self, value, *args, **kwargs):
         return self.field_type.dump(self.value, *args, **kwargs)
+
+    def __repr__(self):
+        return '<{klass} {value} of type {field_type}>'.format(
+            klass=self.__class__.__name__,
+            value=repr(self.value),
+            field_type=repr(self.field_type),
+        )
 
 
 class Field(ErrorMessagesMixin):
@@ -793,9 +809,9 @@ class AttributeField(Field):
     def __init__(self, field_type, attribute=None, *args, **kwargs):
         super(AttributeField, self).__init__(field_type, *args, **kwargs)
         if attribute is None:
-            attribute = lambda name: name
+            attribute = identity
         elif not callable(attribute):
-            attribute = (lambda attr: lambda name: attr)(attribute)
+            attribute = constant(attribute)
         self.name_to_attribute = attribute
 
     def get_value(self, name, obj, *args, **kwargs):
@@ -840,10 +856,10 @@ class MethodField(Field):
         super(MethodField, self).__init__(field_type, *args, **kwargs)
         if get is not None:
             if not callable(get):
-                get = (lambda attr: lambda name: attr)(get)
+                get = constant(get)
         if set is not None:
             if not callable(set):
-                set = (lambda attr: lambda name: attr)(set)
+                set = constant(set)
         self.get_method = get
         self.set_method = set
 
@@ -960,6 +976,9 @@ class Object(Type):
         fields (own or inherited) won't be used.
     :param list exclude: List of field names to exclude from this object.
         All other fields (own or inherited) will be included.
+    :param bool ordered: Serialize data into OrderedDict following fields order.
+        Fields in this case should be declared with a dictionary which also
+        supports ordering or with a list of tuples.
     :param bool immutable: If False, object is allowed to be modified in-place;
         if True - always create a copy with `constructor`.
     :param kwargs: Same keyword arguments as for :class:`Type`.
@@ -1096,8 +1115,11 @@ class Object(Type):
         if obj is None:
             raise ValueError('Load target should not be None')
 
-        if data is MISSING or data is None:
+        if data is MISSING:
             return
+
+        if data is None:
+            self._fail('required')
 
         if not is_dict(data):
             self._fail('invalid')
@@ -1139,7 +1161,10 @@ class Object(Type):
                 if name not in data:
                     continue
 
-                field.set_value(name, obj, data2.get(name, MISSING))
+                try:
+                    field.set_value(name, obj, data2.get(name, MISSING))
+                except ValidationError as ve:
+                    raise ValidationError({name: ve.messages})
 
             result = obj
 
@@ -1181,6 +1206,12 @@ class Object(Type):
 
         return super(Object, self).dump(result, *args, **kwargs)
 
+    def __repr__(self):
+        return '<{klass} {fields}>'.format(
+            klass=self.__class__.__name__,
+            fields=repr(self.fields),
+        )
+
 
 class Optional(Type):
     """A wrapper type which makes values optional: if value is missing or None,
@@ -1199,8 +1230,12 @@ class Optional(Type):
         })
 
     :param Type inner_type: Actual type that should be optional.
-    :param load_default: Value to use when value is missing on deserialization.
-    :param dump_default: Value to use when value is missing on serialization.
+    :param load_default: Value or callable. If value - it will be used when value
+        is missing on deserialization. If callable - it will be called with no
+        arguments to get value to use when value is missing on deserialization.
+    :param dump_default: Value or callable. If value - it will be used when value
+        is missing on serialization. If callable - it will be called with no
+        arguments to get value to use when value is missing on serialization.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
     def __init__(self, inner_type,
@@ -1208,22 +1243,26 @@ class Optional(Type):
                  **kwargs):
         super(Optional, self).__init__(**kwargs)
         self.inner_type = inner_type
+        if not callable(load_default):
+            load_default = constant(load_default)
+        if not callable(dump_default):
+            dump_default = constant(dump_default)
         self.load_default = load_default
         self.dump_default = dump_default
 
-    def load(self, data, *args, **kwargs):
+    def load(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return self.load_default
+            return call_with_context(self.load_default, context)
         return super(Optional, self).load(
-            self.inner_type.load(data, *args, **kwargs),
+            self.inner_type.load(data, context=context, *args, **kwargs),
             *args, **kwargs
         )
 
-    def dump(self, data, *args, **kwargs):
+    def dump(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return self.dump_default
+            return call_with_context(self.dump_default, context)
         return super(Optional, self).dump(
-            self.inner_type.dump(data, *args, **kwargs),
+            self.inner_type.dump(data, context=context, *args, **kwargs),
             *args, **kwargs
         )
 
