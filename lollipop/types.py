@@ -994,10 +994,12 @@ class Object(Type):
     :param bool allow_extra_fields: If False, it will raise
         :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
         deserialization. If True, will ignore all extra fields.
-    :param list only: List of field names to include in this object. All other
-        fields (own or inherited) won't be used.
-    :param list exclude: List of field names to exclude from this object.
-        All other fields (own or inherited) will be included.
+    :param only: Field name or list of field names to include in this object
+        from it's base classes. All other base classes' fields won't be used.
+        Does not affect own fields.
+    :param exclude: Field name or list of field names to exclude from this
+        object from base classes. All other base classes' fields will be included.
+        Does not affect own fields.
     :param bool ordered: Serialize data into OrderedDict following fields order.
         Fields in this case should be declared with a dictionary which also
         supports ordering or with a list of tuples.
@@ -1017,6 +1019,7 @@ class Object(Type):
                  immutable=None, ordered=None,
                  **kwargs):
         super(Object, self).__init__(**kwargs)
+
         if bases_or_fields is None and fields is None:
             raise ValueError('No base and/or fields are specified')
 
@@ -1073,12 +1076,6 @@ class Object(Type):
             for base in bases:
                 all_fields += list(iteritems(base.fields))
 
-        if fields is not None:
-            all_fields += [
-                (name, self._normalize_field(field))
-                for name, field in (iteritems(fields) if is_dict(fields) else fields)
-            ]
-
         if only is not None:
             all_fields = [(name, field)
                           for name, field in all_fields
@@ -1088,6 +1085,12 @@ class Object(Type):
             all_fields = [(name, field)
                           for name, field in all_fields
                           if name not in exclude]
+
+        if fields is not None:
+            all_fields += [
+                (name, self._normalize_field(field))
+                for name, field in (iteritems(fields) if is_dict(fields) else fields)
+            ]
 
         return OrderedDict(all_fields)
 
