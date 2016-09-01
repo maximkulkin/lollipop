@@ -932,6 +932,28 @@ class FunctionField(Field):
         call_with_context(self.set_func, context, obj, value)
 
 
+def inheritable_property(name):
+    cache_attr = '__' + name
+
+    @property
+    def getter(self):
+        if not hasattr(self, cache_attr):
+            value = getattr(self, '_' + name)
+            if value is None:
+                for base in self.bases:
+                    value = getattr(base, name)
+                    if value is not None:
+                        break
+                else:
+                    value = None
+
+            setattr(self, cache_attr, value)
+
+        return getattr(self, cache_attr)
+
+    return getter
+
+
 class Object(Type):
     """An object type. Serializes to a dict of field names to serialized field
     values. Parametrized with field names to types mapping.
@@ -997,10 +1019,11 @@ class Object(Type):
         super(Object, self).__init__(**kwargs)
         if bases_or_fields is None and fields is None:
             raise ValueError('No base and/or fields are specified')
-        if isinstance(bases_or_fields, Object):
+
+        if isinstance(bases_or_fields, Type):
             bases = [bases_or_fields]
         if is_list(bases_or_fields) and \
-                all([isinstance(base, Object) for base in bases_or_fields]):
+                all([isinstance(base, Type) for base in bases_or_fields]):
             bases = bases_or_fields
         elif is_list(bases_or_fields) or is_dict(bases_or_fields):
             if fields is None:
@@ -1011,34 +1034,31 @@ class Object(Type):
 
         self.bases = bases
 
-        if default_field_type is None:
-            default_field_type = self._inherited_value('default_field_type')
+        self._default_field_type = default_field_type
+        self._constructor = constructor
+        self._allow_extra_fields = allow_extra_fields
+        self._immutable = immutable
+        self._ordered = ordered
+        if only is not None and not is_list(only):
+            only = [only]
+        if exclude is not None and not is_list(exclude):
+            exclude = [exclude]
+        self._only = only
+        self._exclude = exclude
+        self._fields = fields
 
-        if constructor is None:
-            constructor = self._inherited_value('constructor')
+    @property
+    def fields(self):
+        if not hasattr(self, '__fields'):
+            self.__fields = self._resolve_fields(self.bases, self._fields,
+                                                 self._only, self._exclude)
+        return self.__fields
 
-        if allow_extra_fields is None:
-            allow_extra_fields = self._inherited_value('allow_extra_fields')
-
-        if immutable is None:
-            immutable = self._inherited_value('immutable')
-
-        if ordered is None:
-            ordered = self._inherited_value('ordered')
-
-        self.default_field_type = default_field_type
-        self.constructor = constructor
-        self.allow_extra_fields = allow_extra_fields
-        self.immutable = immutable
-        self.ordered = ordered
-        self.fields = self._resolve_fields(self.bases, fields, only, exclude)
-
-    def _inherited_value(self, attr):
-        for base in self.bases:
-            value = getattr(base, attr)
-            if value is not None:
-                return value
-        return None
+    default_field_type = inheritable_property('default_field_type')
+    constructor = inheritable_property('constructor')
+    allow_extra_fields = inheritable_property('allow_extra_fields')
+    immutable = inheritable_property('immutable')
+    ordered = inheritable_property('ordered')
 
     def _normalize_field(self, value):
         if isinstance(value, Field):
@@ -1053,10 +1073,11 @@ class Object(Type):
             for base in bases:
                 all_fields += list(iteritems(base.fields))
 
-        all_fields += [
-            (name, self._normalize_field(field))
-            for name, field in (iteritems(fields) if is_dict(fields) else fields)
-        ]
+        if fields is not None:
+            all_fields += [
+                (name, self._normalize_field(field))
+                for name, field in (iteritems(fields) if is_dict(fields) else fields)
+            ]
 
         if only is not None:
             all_fields = [(name, field)
