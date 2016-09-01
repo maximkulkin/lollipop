@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin
 from lollipop.compat import string_types
-from lollipop.utils import call_with_context, is_list
+from lollipop.utils import call_with_context, is_list, identity
 import re
 
 
@@ -278,7 +278,7 @@ class Unique(Validator):
         'unique': 'Values are not unique',
     }
 
-    def __init__(self, key=lambda x: x, error=None, **kwargs):
+    def __init__(self, key=identity, error=None, **kwargs):
         super(Unique, self).__init__(**kwargs)
         self.key = key
         if error is not None:

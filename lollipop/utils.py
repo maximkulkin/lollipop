@@ -2,6 +2,17 @@ import inspect
 import re
 
 
+def identity(value):
+    """Function that returns its argument."""
+    return value
+
+def constant(value):
+    """Returns function that takes any arguments and always returns given value."""
+    def func(*args, **kwargs):
+        return value
+    return func
+
+
 def is_list(value):
     """Returns True if value supports list interface; False - otherwise"""
     return isinstance(value, list)

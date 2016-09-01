@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from lollipop.utils import is_list, is_dict, call_with_context
+from lollipop.utils import is_list, is_dict, call_with_context, constant, identity
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -464,7 +464,7 @@ def dict_value_hint(key, mapper=None):
     To be used as a type hint in :class:`OneOf`.
     """
     if mapper is None:
-        mapper = lambda x: x
+        mapper = identity
 
     def hinter(data):
         return mapper(data.get(key))
@@ -793,9 +793,9 @@ class AttributeField(Field):
     def __init__(self, field_type, attribute=None, *args, **kwargs):
         super(AttributeField, self).__init__(field_type, *args, **kwargs)
         if attribute is None:
-            attribute = lambda name: name
+            attribute = identity
         elif not callable(attribute):
-            attribute = (lambda attr: lambda name: attr)(attribute)
+            attribute = constant(attribute)
         self.name_to_attribute = attribute
 
     def get_value(self, name, obj, *args, **kwargs):
@@ -840,10 +840,10 @@ class MethodField(Field):
         super(MethodField, self).__init__(field_type, *args, **kwargs)
         if get is not None:
             if not callable(get):
-                get = (lambda attr: lambda name: attr)(get)
+                get = constant(get)
         if set is not None:
             if not callable(set):
-                set = (lambda attr: lambda name: attr)(set)
+                set = constant(set)
         self.get_method = get
         self.set_method = set
 
