@@ -257,9 +257,55 @@ particular type to use during serialization/deserialization. It helps returning
 proper error messages. If you're not interested in providing detailed error message,
 you can just supply all types as a list. :class:`~lollipop.types.OneOf` will try
 to use each of them in given order returning first successfull result. If all types
-return errors it will provide generic error message. Here is example of library's
-error messages schema: ::
+return errors it will provide generic error message.
 
-    ErrorMessagesType = OneOf([
-        String(), List(String()), Dict('ErrorMessages')
-    ], name='ErrorMessages')
+
+Two-way type references
+-----------------------
+Nesting object types inside another objects is very easy since object types are just
+another types. But sometimes you might have multiple application entities that
+reference each other. E.g. you model a library and inside you have Person model and
+Book model. Person can be author of multiple books and each book has (for simplicity
+lets assume only one) author. You want your Person type to have a reference to Book
+and Book to have reference to Person types.
+
+For that matter library provides a storage for types which can provide you with
+delayed type resolving: ::
+
+    import lollipop.types as lt
+    from lollupop.type_registry import TypeRegistry
+
+    TYPES = TypeRegistry()
+
+    PersonType = TYPES.add('Person', lt.Object({
+        'name': lt.String(),
+        'books': lt.List(lt.Object(TYPES['Book'], exclude='author')),
+    }, constructor=Person))
+
+    BookType = TYPES.add('Book', lt.Object({
+        'title': lt.String(),
+        'author': lt.Object(TYPES['Person'], exclude='books'),
+    }, constructor=Book))
+
+Here you can see that we get a types from our registry to use them as a base object
+types and then customize them (e.g. exclude some fields to eliminate circular
+dependency). The Object type is designed to not access base class' properties and
+methods until is needed thus allowing to postpone actual type resolution and thus
+allowing forward references to types.
+
+Type type registry is not a global instance, but instance local to whatever degree
+you want it to be local. If your application schemas can fit into one module, you
+declare registry in that module. If your schemas span multiple modules, it is better
+to put registry in a separate module (along with any custom type declarations that
+you might have) and import it where needed.
+
+You can even do self references inside Object declarations. Here is example of
+type declaration for lollipop errors format: ::
+
+    TYPES = TypeRegistry()
+    ErrorsType = TYPES.add('Errors', lt.OneOf([
+        lt.String,
+        lt.List(lt.String()),
+        lt.Dict(TYPES['Errors']),
+    ]))
+
