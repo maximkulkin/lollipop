@@ -413,7 +413,7 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, data)):
             try:
-                result.add(item_type.load(item, *args, **kwargs))
+                result.append(item_type.load(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
@@ -424,7 +424,7 @@ class Tuple(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_list(data):
+        if not is_list(value):
             self._fail('invalid')
 
         if len(value) != len(self.item_types):
@@ -434,7 +434,7 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, value)):
             try:
-                result.add(item_type.dump(item, *args, **kwargs))
+                result.append(item_type.dump(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
