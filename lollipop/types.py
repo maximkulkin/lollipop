@@ -1379,20 +1379,20 @@ class Transform(Type):
 
     :param Type inner_type: Data type.
     :param pre_load: Modify data before it is passed to inner_type load. Argument
-    should be a callable taking one argument - data - and returning updated data.
-    Optionally it can take a second argument - context.
+        should be a callable taking one argument - data - and returning updated data.
+        Optionally it can take a second argument - context.
     :param post_load: Modify data after it is returned from inner_type load.
-    Argument should be a callable taking one argument - data - and returning
-    updated data. Optionally it can take a second argument - context.
+        Argument should be a callable taking one argument - data - and returning
+        updated data. Optionally it can take a second argument - context.
     :param pre_dump: Modify value before it passed to inner_type dump. Argument
-    should be a callable taking one argument - value - and returning updated value.
-    Optionally it can take a second argument - context.
+        should be a callable taking one argument - value - and returning updated value.
+        Optionally it can take a second argument - context.
     :param post_dump: Modify value after it is returned from inner_type dump.
-    Argument should be a callable taking one argument -value - and returning
-    updated value. Optionally it can take a second argument - context.
-
+        Argument should be a callable taking one argument - value - and returning
+        updated value. Optionally it can take a second argument - context.
     """
-    def __init__(self, inner_type, pre_load=identity, post_load=identity,
+    def __init__(self, inner_type,
+                 pre_load=identity, post_load=identity,
                  pre_dump=identity, post_dump=identity):
         super(Transform, self).__init__()
         self.inner_type = inner_type
