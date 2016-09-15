@@ -5,7 +5,7 @@ from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
     Field, AttributeField, MethodField, FunctionField, Constant, Object, \
-    Optional, LoadOnly, DumpOnly, type_name_hint, dict_value_hint
+    Optional, LoadOnly, DumpOnly, Transform, type_name_hint, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
@@ -2002,3 +2002,86 @@ class TestDumpOnly:
         context = object()
         DumpOnly(inner_type).dump('foo', context)
         assert inner_type.dump_context == context
+
+
+class TestTransform:
+    def test_loading_calls_pre_load_with_original_value(self):
+        class Callbacks():
+            def pre_load(self, data):
+                self.pre_loaded = data
+                return data
+        callbacks = Callbacks()
+        Transform(SpyType(), pre_load=callbacks.pre_load).load('foo')
+        assert callbacks.pre_loaded == 'foo'
+
+    def test_loading_calls_inner_type_load_with_result_of_pre_load(self):
+        inner_type = SpyType()
+        transform = Transform(inner_type, pre_load=lambda foo: 'bar').load('foo')
+        assert inner_type.loaded == 'bar'
+
+    def test_loading_calls_post_load_with_result_of_inner_type_load(self):
+        inner_type = SpyType()
+        transform = Transform(inner_type,
+                              post_load=lambda foo: foo + 'bar').load('foo')
+        assert inner_type.loaded == 'foo'
+        assert transform == 'foobar'
+
+    def test_transform_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type).load('foo', context)
+        assert inner_type.load_context == context
+
+    def test_transform_passes_context_to_pre_load(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type,
+                              pre_load=lambda foo, context: [foo, context])
+        assert transform.load('foo', context) == ['foo', context]
+
+    def test_transform_passes_context_to_post_load(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type,
+                              post_load=lambda foo, context: [foo,context])
+        assert transform.load('foo', context) == ['foo', context]
+
+    def test_dumping_calls_pre_dump_with_original_value(self):
+        class Callbacks():
+            def pre_dump(self, data):
+                self.pre_dumped = data
+                return data
+        callbacks = Callbacks()
+        Transform(SpyType(), pre_dump=callbacks.pre_dump).dump('foo')
+        assert callbacks.pre_dumped == 'foo'
+
+    def test_dumping_calls_inner_type_dump_with_result_of_pre_dump(self):
+        inner_type = SpyType()
+        transform = Transform(inner_type, pre_dump=lambda foo: 'bar').dump('foo')
+        assert inner_type.dumped == 'bar'
+
+    def test_dumping_calls_post_dump_with_result_of_inner_type_dump(self):
+        inner_type = SpyType()
+        transform = Transform(inner_type,
+                              post_dump=lambda foo: foo + 'bar').dump('foo')
+        assert transform == 'foobar'
+
+    def test_transform_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type).dump('foo', context)
+        assert inner_type.dump_context == context
+
+    def test_transform_passes_context_to_pre_dump(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type,
+                              pre_dump=lambda foo, context: [foo, context])
+        assert transform.dump('foo', context) == ['foo', context]
+
+    def test_transform_passes_context_to_post_dump(self):
+        inner_type = SpyType()
+        context = object()
+        transform = Transform(inner_type,
+                              post_dump=lambda foo, context: [foo,context])
+        assert transform.dump('foo', context) == ['foo', context]

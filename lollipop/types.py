@@ -413,7 +413,7 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, data)):
             try:
-                result.add(item_type.load(item, *args, **kwargs))
+                result.append(item_type.load(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
@@ -424,7 +424,7 @@ class Tuple(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_list(data):
+        if not is_list(value):
             self._fail('invalid')
 
         if len(value) != len(self.item_types):
@@ -434,7 +434,7 @@ class Tuple(Type):
         result = []
         for idx, (item_type, item) in enumerate(zip(self.item_types, value)):
             try:
-                result.add(item_type.dump(item, *args, **kwargs))
+                result.append(item_type.dump(item, *args, **kwargs))
             except ValidationError as ve:
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
@@ -1354,4 +1354,67 @@ class DumpOnly(Type):
         return '<{klass} {inner_type}>'.format(
             klass=self.__class__.__name__,
             inner_type=repr(self.inner_type),
+        )
+
+
+class Transform(Type):
+    """A wrapper type which allows us to convert data structures to an inner type,
+    then loaded or dumped with a customized format.
+
+    Example: ::
+
+        Point = namedtuple('Point', ['x', 'y'])
+
+        PointType = Transform(
+            Tuple(Integer(), Integer()),
+            load=lambda values: Point(values[0], values[1]),
+            dump=lambda point: [point.x, point.y],
+        )
+
+        PointType.dump((Point(x=1, y=2)))
+        # => [1,2]
+
+        PointType.load([1,2])
+        # => Point(x=1, y=2)
+
+    :param Type inner_type: Data type.
+    :param pre_load: Modify data before it is passed to inner_type load. Argument
+    should be a callable taking one argument - data - and returning updated data.
+    Optionally it can take a second argument - context.
+    :param post_load: Modify data after it is returned from inner_type load.
+    Argument should be a callable taking one argument - data - and returning
+    updated data. Optionally it can take a second argument - context.
+    :param pre_dump: Modify value before it passed to inner_type dump. Argument
+    should be a callable taking one argument - value - and returning updated value.
+    Optionally it can take a second argument - context.
+    :param post_dump: Modify value after it is returned from inner_type dump.
+    Argument should be a callable taking one argument -value - and returning
+    updated value. Optionally it can take a second argument - context.
+
+    """
+    def __init__(self, inner_type, pre_load=identity, post_load=identity,
+                 pre_dump=identity, post_dump=identity):
+        super(Transform, self).__init__()
+        self.inner_type = inner_type
+        self.pre_load = pre_load
+        self.post_load = post_load
+        self.pre_dump = pre_dump
+        self.post_dump = post_dump
+
+    def load(self, data, context=None):
+        return call_with_context(
+            self.post_load, context,
+            self.inner_type.load(
+                call_with_context(self.pre_load, context, data),
+                context,
+            )
+        )
+
+    def dump(self, value, context=None):
+        return call_with_context(
+            self.post_dump, context,
+            self.inner_type.dump(
+                call_with_context(self.pre_dump, context, value),
+                context,
+            )
         )
