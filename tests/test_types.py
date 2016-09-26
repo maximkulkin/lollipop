@@ -29,7 +29,8 @@ def constant_fail_validator(message):
 
 def is_odd_validator():
     """Returns validator that checks if integer is odd"""
-    return validator(lambda x: x % 2 == 1, 'Value should be odd')
+    return validator(lambda x: x % 2 == 1, is_odd_validator.message)
+is_odd_validator.message = 'Value should be odd'
 
 
 def random_string():
@@ -503,7 +504,7 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
     def test_loading_list_value_with_items_that_have_validation_errors_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(Integer(validate=is_odd_validator())).load([1, 2, 3])
-        assert exc_info.value.messages == {1: 'Value should be odd'}
+        assert exc_info.value.messages == {1: is_odd_validator.message}
 
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
@@ -569,7 +570,7 @@ class TestTuple(RequiredTestsMixin, ValidationTestsMixin):
     def test_loading_tuple_with_items_that_have_validation_errors_raises_ValidationErrors(self):
         with pytest.raises(ValidationError) as exc_info:
             Tuple([Integer(validate=is_odd_validator()), Integer()]).load([2, 1])
-        assert exc_info.value.messages == {0: 'Value should be odd'}
+        assert exc_info.value.messages == {0: is_odd_validator.message}
 
     def test_loading_passes_context_to_inner_type_load(self):
         inner_type = SpyType()
@@ -626,7 +627,7 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
     def test_loading_dict_with_items_that_have_validation_errors_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer(validate=is_odd_validator())).load({'foo': 1, 'bar': 2})
-        assert exc_info.value.messages == {'bar': 'Value should be odd'}
+        assert exc_info.value.messages == {'bar': is_odd_validator.message}
 
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
