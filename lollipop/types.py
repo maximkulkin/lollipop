@@ -1367,8 +1367,8 @@ class Transform(Type):
 
         PointType = Transform(
             Tuple(Integer(), Integer()),
-            load=lambda values: Point(values[0], values[1]),
-            dump=lambda point: [point.x, point.y],
+            post_load=lambda values: Point(values[0], values[1]),
+            pre_dump=lambda point: [point.x, point.y],
         )
 
         PointType.dump((Point(x=1, y=2)))
