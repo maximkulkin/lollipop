@@ -1,6 +1,24 @@
 Changelog
 ---------
 
+1.0 (2016-09-26)
+++++++++++++++++
+
+* Added inheritance of Object type settings (e.g. constructors, allow_extra_fields, etc.)
+* Added support for ordering Object type attributes
+* Updated Optional to support generating load_default/dump_default values instead of
+  using fixed values. E.g. you can have your "id" field to default to auto-generated UUID.
+* Added type registry with delayed type resolving. This allows having types that
+  reference each other (e.g. Person being author to multiple Books and Book having
+  author)
+* Updated Object only/exclude to not affect own fields
+* Added Transform modifier type
+* Added validated_type() function to simplify creation of new types that are actually
+  just existing type with an extra validator(s).
+* Fixed Object.load_into processing of None values
+* Fixed Object.load_into not annotating errors with field names
+* Fixed typos in Tuple type, added tests
+
 0.3 (2016-08-23)
 ++++++++++++++++
 
