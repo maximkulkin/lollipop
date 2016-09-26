@@ -5,7 +5,8 @@ from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Tuple, \
     Dict, Field, AttributeField, MethodField, FunctionField, Constant, Object, \
-    Optional, LoadOnly, DumpOnly, Transform, type_name_hint, dict_value_hint
+    Optional, LoadOnly, DumpOnly, Transform, type_name_hint, dict_value_hint, \
+    validated_type
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
@@ -32,6 +33,10 @@ def is_odd_validator():
     return validator(lambda x: x % 2 == 1, is_odd_validator.message)
 is_odd_validator.message = 'Value should be odd'
 
+
+def divisible_by_validator(n):
+    """Returns validator that checks if integer is divisible by given `n`"""
+    return Predicate(lambda x: x % n == 0, 'Value should be divisible by %d' % n)
 
 def random_string():
     return str(uuid.uuid4())
@@ -2142,3 +2147,43 @@ class TestTransform:
         transform = Transform(inner_type,
                               post_dump=lambda foo, context: [foo,context])
         assert transform.dump('foo', context) == ['foo', context]
+
+
+class TestValidatedType:
+    def test_returns_subclass_of_given_type(self):
+        base_type = String
+        assert issubclass(validated_type(base_type), base_type)
+
+    def test_returns_type_that_has_single_given_validator(self):
+        OddInteger = validated_type(Integer, validate=is_odd_validator())
+        assert OddInteger().validate(1) is None
+        assert OddInteger().validate(2) == is_odd_validator.message
+
+    def test_returns_type_that_has_multiple_given_validators(self):
+        MyInteger = validated_type(Integer, validate=[divisible_by_validator(3),
+                                                      divisible_by_validator(5)])
+        my_type = MyInteger()
+        assert my_type.validate(1) == ['Value should be divisible by 3',
+                                       'Value should be divisible by 5']
+        assert my_type.validate(3) == 'Value should be divisible by 5'
+        assert my_type.validate(5) == 'Value should be divisible by 3'
+        assert my_type.validate(15) is None
+
+    def test_specifying_more_validators_on_type_instantiation(self):
+        MyInteger = validated_type(Integer, validate=divisible_by_validator(3))
+        my_type = MyInteger(validate=divisible_by_validator(5))
+        assert my_type.validate(1) == ['Value should be divisible by 3',
+                                       'Value should be divisible by 5']
+        assert my_type.validate(3) == 'Value should be divisible by 5'
+        assert my_type.validate(5) == 'Value should be divisible by 3'
+        assert my_type.validate(15) is None
+
+    def test_new_type_accepts_same_constructor_arguments_as_base_type(self):
+        class MyType(Type):
+            def __init__(self, foo='foo', *args, **kwargs):
+                super(MyType, self).__init__(*args, **kwargs)
+                self.foo = foo
+
+        MyValidatedType = validated_type(MyType)
+        assert MyValidatedType().foo == 'foo'
+        assert MyValidatedType(foo='bar').foo == 'bar'

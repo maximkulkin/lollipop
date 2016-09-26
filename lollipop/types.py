@@ -1418,3 +1418,51 @@ class Transform(Type):
                 context,
             )
         )
+
+
+def validated_type(base_type, name=None, validate=None):
+    """Convenient way to create a new type by adding validation to existing type.
+
+    Example: ::
+
+        Ipv4Address = validated_type(
+            String, 'Ipv4Address',
+            # regexp simplified for demo purposes
+            Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address')
+        )
+
+        Percentage = validated_type(Integer, validate=Range(0, 100))
+
+        # The above is the same as
+
+        class Ipv4Address(String):
+            def __init__(self, *args, **kwargs):
+                super(Ipv4Address, self).__init__(*args, **kwargs)
+                self._validators.insert(0, Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address'))
+
+        class Percentage(Integer):
+            def __init__(self, *args, **kwargs):
+                super(Percentage, self).__init__(*args, **kwargs)
+                self._validators.insert(0, Range(0, 100))
+
+    :param Type base_type: Base type for a new type.
+    :param name str: Optional class name for new type
+        (will be shown in places like repr).
+    :param validate: A validator or list of validators for this data type.
+        See `Type.validate` for details.
+    """
+    if validate is None:
+        validate = []
+    if not is_list(validate):
+        validate = [validate]
+
+    class ValidatedSubtype(base_type):
+        if name is not None:
+            __name__ = name
+
+        def __init__(self, *args, **kwargs):
+            super(ValidatedSubtype, self).__init__(*args, **kwargs)
+            for validator in reversed(validate):
+                self._validators.insert(0, validator)
+
+    return ValidatedSubtype
