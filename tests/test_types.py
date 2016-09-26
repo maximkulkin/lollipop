@@ -3,8 +3,8 @@ from functools import partial
 import datetime
 from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
-    Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Dict, \
-    Field, AttributeField, MethodField, FunctionField, Constant, Object, \
+    Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Tuple, \
+    Dict, Field, AttributeField, MethodField, FunctionField, Constant, Object, \
     Optional, LoadOnly, DumpOnly, Transform, type_name_hint, dict_value_hint
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
@@ -539,6 +539,62 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
         inner_type = SpyType()
         context = object()
         List(inner_type).dump(['foo'], context)
+        assert inner_type.dump_context == context
+
+
+class TestTuple(RequiredTestsMixin, ValidationTestsMixin):
+    tested_type = partial(Tuple, [Integer(), Integer()])
+    valid_data = [123, 456]
+    valid_value = [123, 456]
+
+    def test_loading_tuple_with_values_of_same_type(self):
+        assert Tuple([Integer(), Integer()]).load([123, 456]) == \
+            [123, 456]
+
+    def test_loading_tuple_with_values_of_different_type(self):
+        assert Tuple([String(), Integer(), Boolean()]).load(['foo', 123, False]) == \
+            ['foo', 123, False]
+
+    def test_loading_non_tuple_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple([Integer(), Integer()]).load({'foo': 'foo', 'bar': 'bar'})
+        assert exc_info.value.messages == Tuple.default_error_messages['invalid']
+
+    def test_loading_tuple_with_items_of_incorrect_type_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple([Integer(), Integer()]).load(['foo', 'bar'])
+        message = Integer.default_error_messages['invalid']
+        assert exc_info.value.messages == {0: message, 1: message}
+
+    def test_loading_tuple_with_items_that_have_validation_errors_raises_ValidationErrors(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple([Integer(validate=is_odd_validator()), Integer()]).load([2, 1])
+        assert exc_info.value.messages == {0: 'Value should be odd'}
+
+    def test_loading_passes_context_to_inner_type_load(self):
+        inner_type = SpyType()
+        context = object()
+        Tuple([inner_type, inner_type]).load(['foo', 'foo'], context)
+        assert inner_type.load_context == context
+
+    def test_dump_tuple(self):
+        assert Tuple([Integer(), Integer()]).dump([123, 456]) == [123, 456]
+
+    def test_dumping_non_tuple_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple(String()).dump('foo')
+        assert exc_info.value.messages == Tuple.default_error_messages['invalid']
+
+    def test_dumping_tuple_with_items_of_incorrect_type_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple([String(), String()]).dump([123, 456])
+        message = String.default_error_messages['invalid']
+        assert exc_info.value.messages == {0: message, 1: message}
+
+    def test_dumping_tuple_passes_context_to_inner_type_dump(self):
+        inner_type = SpyType()
+        context = object()
+        Tuple([inner_type, inner_type]).dump(['foo','foo'], context)
         assert inner_type.dump_context == context
 
 
