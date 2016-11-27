@@ -1052,10 +1052,10 @@ class Object(Type):
 
     @property
     def fields(self):
-        if not hasattr(self, '__fields'):
-            self.__fields = self._resolve_fields(self.bases, self._fields,
-                                                 self._only, self._exclude)
-        return self.__fields
+        if not hasattr(self, '_resolved_fields'):
+            self._resolved_fields = self._resolve_fields(self.bases, self._fields,
+                                                         self._only, self._exclude)
+        return self._resolved_fields
 
     default_field_type = inheritable_property('default_field_type')
     constructor = inheritable_property('constructor')
