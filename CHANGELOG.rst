@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+1.0.1 (2016-11-27)
+++++++++++++++++++
+
+* Fixed broken object resolved field caching thus improving performance
+
 1.0 (2016-09-26)
 ++++++++++++++++
 
