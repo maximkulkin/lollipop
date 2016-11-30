@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+1.0.2 (2016-11-29)
+++++++++++++++++++
+
+* Improved callbacks performance by prebaking context awareness
+
 1.0.1 (2016-11-27)
 ++++++++++++++++++
 
