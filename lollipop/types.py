@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from lollipop.utils import is_list, is_dict, call_with_context, constant, identity
+from lollipop.utils import is_list, is_dict, make_context_aware, constant, identity
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -60,7 +60,8 @@ class Type(ErrorMessagesMixin, object):
         elif callable(validate):
             validate = [validate]
 
-        self._validators = validate
+        self._validators = [make_context_aware(validator, 1)
+                            for validator in validate]
 
     def validate(self, data, context=None):
         """Takes serialized data and returns validation errors or None.
@@ -87,7 +88,7 @@ class Type(ErrorMessagesMixin, object):
         errors_builder = ValidationErrorBuilder()
         for validator in self._validators:
             try:
-                call_with_context(validator, context, data)
+                validator(data, context)
             except ValidationError as ve:
                 errors_builder.add_errors(ve.messages)
         errors_builder.raise_errors()
@@ -873,7 +874,7 @@ class MethodField(Field):
         method = getattr(obj, method_name)
         if not callable(method):
             raise ValueError('Value of %s is not callable' % method_name)
-        return call_with_context(method, context)
+        return make_context_aware(method, 0)(context)
 
     def set_value(self, name, obj, value, context=None, *args, **kwargs):
         if not self.set_method:
@@ -885,7 +886,7 @@ class MethodField(Field):
         method = getattr(obj, method_name)
         if not callable(method):
             raise ValueError('Value of %s is not callable' % method_name)
-        return call_with_context(method, context, value)
+        return make_context_aware(method, 1)(value, context)
 
 
 class FunctionField(Field):
@@ -918,18 +919,24 @@ class FunctionField(Field):
             raise ValueError("Get function is not callable")
         if set is not None and not callable(set):
             raise ValueError("Set function is not callable")
+
+        if get is not None:
+            get = make_context_aware(get, 1)
+        if set is not None:
+            set = make_context_aware(set, 2)
+
         self.get_func = get
         self.set_func = set
 
     def get_value(self, name, obj, context=None, *args, **kwargs):
         if self.get_func is None:
             return MISSING
-        return call_with_context(self.get_func, context, obj)
+        return self.get_func(obj, context)
 
     def set_value(self, name, obj, value, context=None, *args, **kwargs):
         if self.set_func is None:
             return MISSING
-        call_with_context(self.set_func, context, obj, value)
+        self.set_func(obj, value, context)
 
 
 def inheritable_property(name):
@@ -1271,12 +1278,12 @@ class Optional(Type):
             load_default = constant(load_default)
         if not callable(dump_default):
             dump_default = constant(dump_default)
-        self.load_default = load_default
-        self.dump_default = dump_default
+        self.load_default = make_context_aware(load_default, 0)
+        self.dump_default = make_context_aware(dump_default, 0)
 
     def load(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return call_with_context(self.load_default, context)
+            return self.load_default(context)
         return super(Optional, self).load(
             self.inner_type.load(data, context=context, *args, **kwargs),
             *args, **kwargs
@@ -1284,7 +1291,7 @@ class Optional(Type):
 
     def dump(self, data, context=None, *args, **kwargs):
         if data is MISSING or data is None:
-            return call_with_context(self.dump_default, context)
+            return self.dump_default(context)
         return super(Optional, self).dump(
             self.inner_type.dump(data, context=context, *args, **kwargs),
             *args, **kwargs
@@ -1396,27 +1403,27 @@ class Transform(Type):
                  pre_dump=identity, post_dump=identity):
         super(Transform, self).__init__()
         self.inner_type = inner_type
-        self.pre_load = pre_load
-        self.post_load = post_load
-        self.pre_dump = pre_dump
-        self.post_dump = post_dump
+        self.pre_load = make_context_aware(pre_load, 1)
+        self.post_load = make_context_aware(post_load, 1)
+        self.pre_dump = make_context_aware(pre_dump, 1)
+        self.post_dump = make_context_aware(post_dump, 1)
 
     def load(self, data, context=None):
-        return call_with_context(
-            self.post_load, context,
+        return self.post_load(
             self.inner_type.load(
-                call_with_context(self.pre_load, context, data),
+                self.pre_load(data, context),
                 context,
-            )
+            ),
+            context,
         )
 
     def dump(self, value, context=None):
-        return call_with_context(
-            self.post_dump, context,
+        return self.post_dump(
             self.inner_type.dump(
-                call_with_context(self.pre_dump, context, value),
+                self.pre_dump(value, context),
                 context,
-            )
+            ),
+            context,
         )
 
 
@@ -1463,6 +1470,6 @@ def validated_type(base_type, name=None, validate=None):
         def __init__(self, *args, **kwargs):
             super(ValidatedSubtype, self).__init__(*args, **kwargs)
             for validator in reversed(validate):
-                self._validators.insert(0, validator)
+                self._validators.insert(0, make_context_aware(validator, 1))
 
     return ValidatedSubtype

@@ -23,10 +23,11 @@ def is_dict(value):
     return isinstance(value, dict)
 
 
-def call_with_context(func, context, *args):
+def make_context_aware(func, numargs):
     """
-    Check if given function has more arguments than given. Call it with context
-    as last argument or without it.
+    Check if given function has no more arguments than given. If so, wrap it
+    into another function that takes extra argument and drops it.
+    Used to support user providing callback functions that are not context aware.
     """
     if inspect.ismethod(func):
         arg_count = len(inspect.getargspec(func).args) - 1
@@ -35,11 +36,21 @@ def call_with_context(func, context, *args):
     else:
         arg_count = len(inspect.getargspec(func.__call__).args) - 1
 
-    if len(args) < arg_count:
-        args = list(args)
-        args.append(context)
+    if arg_count <= numargs:
+        def normalized(*args):
+            return func(*args[:-1])
 
-    return func(*args)
+        return normalized
+
+    return func
+
+
+def call_with_context(func, context, *args):
+    """
+    Check if given function has more arguments than given. Call it with context
+    as last argument or without it.
+    """
+    return make_context_aware(func, len(args))(*args + (context,))
 
 
 def to_snake_case(s):

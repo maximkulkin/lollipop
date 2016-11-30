@@ -2159,6 +2159,16 @@ class TestValidatedType:
         assert OddInteger().validate(1) is None
         assert OddInteger().validate(2) == is_odd_validator.message
 
+    def test_accepts_context_unaware_validators(self):
+        error_message = 'Value should be odd'
+        def context_unaware_is_odd_validator(value):
+            if value % 2 == 0:
+                raise ValidationError(error_message)
+
+        OddInteger = validated_type(Integer, validate=context_unaware_is_odd_validator)
+        assert OddInteger().validate(1) is None
+        assert OddInteger().validate(2) == error_message
+
     def test_returns_type_that_has_multiple_given_validators(self):
         MyInteger = validated_type(Integer, validate=[divisible_by_validator(3),
                                                       divisible_by_validator(5)])

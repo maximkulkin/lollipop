@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin
 from lollipop.compat import string_types
-from lollipop.utils import call_with_context, is_list, identity
+from lollipop.utils import make_context_aware, is_list, identity
 import re
 
 
@@ -53,13 +53,13 @@ class Predicate(Validator):
 
     def __init__(self, predicate, error=None, **kwargs):
         super(Predicate, self).__init__(**kwargs)
-        self.predicate = predicate
+        self.predicate = make_context_aware(predicate, 1)
         if error is not None:
             self._error_messages['invalid'] = error
         self.error = error
 
     def __call__(self, value, context=None):
-        if not call_with_context(self.predicate, context, value):
+        if not self.predicate(value, context):
             self._fail('invalid', data=value)
 
     def __repr__(self):
