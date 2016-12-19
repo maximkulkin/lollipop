@@ -28,6 +28,7 @@ __all__ = [
     'Optional',
     'LoadOnly',
     'DumpOnly',
+    'validated_type',
 ]
 
 class MissingType(object):
