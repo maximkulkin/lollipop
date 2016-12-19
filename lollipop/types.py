@@ -28,6 +28,7 @@ __all__ = [
     'Optional',
     'LoadOnly',
     'DumpOnly',
+    'validated_type',
 ]
 
 class MissingType(object):
@@ -37,6 +38,34 @@ class MissingType(object):
 
 #: Special singleton value (like None) to represent case when value is missing.
 MISSING = MissingType()
+
+
+class ValidatorCollection(object):
+    def __init__(self, validators):
+        self._validators = [make_context_aware(validator, 1)
+                            for validator in validators]
+
+    def append(self, validator):
+        self._validators.append(make_context_aware(validator, 1))
+
+    def insert(self, idx, validator):
+        self._validators.insert(idx, make_context_aware(validator, 1))
+
+    def __len__(self):
+        return len(self._validators)
+
+    def __getitem__(self, idx):
+        return self._validators[idx]
+
+    def __setitem__(self, idx, validator):
+        self._validators[idx] = make_context_aware(validator, 1)
+
+    def __delitem__(self, idx):
+        del self._validators[idx]
+
+    def __iter__(self):
+        for validator in self._validators:
+            yield validator
 
 
 class Type(ErrorMessagesMixin, object):
@@ -60,8 +89,7 @@ class Type(ErrorMessagesMixin, object):
         elif callable(validate):
             validate = [validate]
 
-        self._validators = [make_context_aware(validator, 1)
-                            for validator in validate]
+        self._validators = ValidatorCollection(validate)
 
     def validate(self, data, context=None):
         """Takes serialized data and returns validation errors or None.
@@ -1470,6 +1498,6 @@ def validated_type(base_type, name=None, validate=None):
         def __init__(self, *args, **kwargs):
             super(ValidatedSubtype, self).__init__(*args, **kwargs)
             for validator in reversed(validate):
-                self._validators.insert(0, make_context_aware(validator, 1))
+                self._validators.insert(0, validator)
 
     return ValidatedSubtype
