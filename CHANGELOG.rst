@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+1.0.3 (2016-12-18)
+++++++++++++++++++
+
+* Fixed usage of validators when you add them after type was created
+* Fixed validated_type() not being public API
+
 1.0.2 (2016-11-29)
 ++++++++++++++++++
 
