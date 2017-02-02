@@ -28,6 +28,7 @@ __all__ = [
     'Optional',
     'LoadOnly',
     'DumpOnly',
+    'Transform',
     'validated_type',
 ]
 
