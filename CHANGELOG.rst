@@ -1,6 +1,20 @@
 Changelog
 ---------
 
+1.0.4 (2017-02-02)
+++++++++++++++++++
+
+* Fix Transform type not being exported
+  (thanks to Vladimir Bolshakov <https://github.com/vovanbo>)
+* Declare support for Python 3.6
+  (thanks to Vladimir Bolshakov <https://github.com/vovanbo>)
+
+1.0.3 (2016-12-18)
+++++++++++++++++++
+
+* Add validated_type to list of exported functions
+* Fix context awareness for manually added validators
+
 1.0.2 (2016-11-29)
 ++++++++++++++++++
 
