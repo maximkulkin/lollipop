@@ -112,7 +112,7 @@ Documentation is available at http://lollipop.readthedocs.io/ .
 Requirements
 ============
 
-- Python >= 2.6 or <= 3.5
+- Python >= 2.6 or <= 3.6
 
 
 Project Links

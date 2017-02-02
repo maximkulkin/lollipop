@@ -3,7 +3,7 @@
 Installation
 ============
 
-**lollipop** requries Python >= 2.6 or <= 3.5. It has no external dependencies other
+**lollipop** requries Python >= 2.6 or <= 3.6. It has no external dependencies other
 than the Python standard library.
 
 ::
