@@ -13,13 +13,13 @@ implement functions `load(data, **kwargs)` and `dump(value, **kwargs)`: ::
         from urllib.parse import urlparse, urljoin
 
     class URL(String):
-        def _load(self, data, *args, **kwargs):
-            loaded = super(URL, self)._load(data, *args, **kwargs)
+        def load(self, data, *args, **kwargs):
+            loaded = super(URL, self).load(data, *args, **kwargs)
             return urlparse(loaded)
 
-        def _dump(self, value, *args, **kwargs):
+        def dump(self, value, *args, **kwargs):
             dumped = urljoin(value)
-            return super(URL, self)._dump(dumped, *args, **kwargs)
+            return super(URL, self).dump(dumped, *args, **kwargs)
 
 
 Other variant is to take existing type and extend it with some validations while
@@ -33,3 +33,20 @@ allowing users to add more validations: ::
         def __init__(self, *args, **kwargs):
             super(Email, self).__init__(*args, **kwargs)
             self._validators.insert(0, validators.Regexp(EMAIL_REGEXP))
+
+To simplify creating new types by adding validators to existing types there is
+a helper function - :func:`~lollipop.types.validated_type`: ::
+
+    Email = validated_type(
+        String, 'Email',
+        validate=Regexp('(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)',
+                        error='Invalid email')
+    )
+
+    Ipv4Address = validated_type(
+        String, 'Ipv4Address',
+        # regexp simplified for demo purposes
+        validate=Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address')
+    )
+
+    Percentage = validated_type(Integer, validate=Range(0, 100))
