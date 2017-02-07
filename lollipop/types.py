@@ -1462,6 +1462,12 @@ class Transform(Type):
             context,
         )
 
+    def __repr__(self):
+        return '<{klass} {inner_type}>'.format(
+            klass=self.__class__.__name__,
+            inner_type=repr(self.inner_type),
+        )
+
 
 def validated_type(base_type, name=None, validate=None):
     """Convenient way to create a new type by adding validation to existing type.
