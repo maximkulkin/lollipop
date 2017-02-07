@@ -824,6 +824,12 @@ class Field(ErrorMessagesMixin):
         value = self.get_value(name, obj)
         return self.field_type.dump(value, *args, **kwargs)
 
+    def __repr__(self):
+        return '<{klass} {field_type}>'.format(
+            klass=self.__class__.__name__,
+            field_type=repr(self.field_type),
+        )
+
 
 class AttributeField(Field):
     """Field that corresponds to object attribute.
@@ -1267,9 +1273,10 @@ class Object(Type):
         return super(Object, self).dump(result, *args, **kwargs)
 
     def __repr__(self):
-        return '<{klass} {fields}>'.format(
+        return '<{klass}{fields}>'.format(
             klass=self.__class__.__name__,
-            fields=repr(self.fields),
+            fields=''.join([' %s=%s' % (name, field_type.field_type)
+                            for name, field_type in self.fields.iteritems()]),
         )
 
 
