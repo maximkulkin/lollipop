@@ -1,4 +1,4 @@
-from lollipop.compat import iteritems
+from lollipop.compat import iteritems, string_types
 
 
 __all__ = [
@@ -137,7 +137,7 @@ class ValidationErrorBuilder(object):
         self.errors = None
 
     def _make_error(self, path, error):
-        parts = path.split('.', 1)
+        parts = path.split('.', 1) if isinstance(path, string_types) else [path]
 
         if len(parts) == 1:
             return {path: error}
