@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+1.1 (2017-02-07)
+++++++++++++++++
+
+* Improved repr() for type objects to allow figuring out schema by just printint it
+* Updated Dict type to allow transforming/validating dictionary keys
+* Fixed/updated custom type documentation
+
 1.0.4 (2017-02-02)
 ++++++++++++++++++
 
