@@ -29,12 +29,17 @@ def make_context_aware(func, numargs):
     into another function that takes extra argument and drops it.
     Used to support user providing callback functions that are not context aware.
     """
-    if inspect.ismethod(func):
-        arg_count = len(inspect.getargspec(func).args) - 1
-    elif inspect.isfunction(func):
-        arg_count = len(inspect.getargspec(func).args)
-    else:
-        arg_count = len(inspect.getargspec(func.__call__).args) - 1
+    try:
+        if inspect.ismethod(func):
+            arg_count = len(inspect.getargspec(func).args) - 1
+        elif inspect.isfunction(func):
+            arg_count = len(inspect.getargspec(func).args)
+        elif inspect.isclass(func):
+            arg_count = len(inspect.getargspec(func.__init__).args) - 1
+        else:
+            arg_count = len(inspect.getargspec(func.__call__).args) - 1
+    except TypeError:
+        arg_count = numargs
 
     if arg_count <= numargs:
         def normalized(*args):

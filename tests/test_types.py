@@ -609,6 +609,14 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
     valid_data = {'foo': 123, 'bar': 456}
     valid_value = {'foo': 123, 'bar': 456}
 
+    def test_loading_dict_with_custom_key_type(self):
+        assert Dict(Any(), key_type=Integer())\
+            .load({'123': 'foo', '456': 'bar'}) == {123: 'foo', 456: 'bar'}
+
+    def test_loading_accepts_any_key_if_key_type_is_not_specified(self):
+        assert Dict(Any())\
+            .load({'123': 'foo', 456: 'bar'}) == {'123': 'foo', 456: 'bar'}
+
     def test_loading_dict_with_values_of_the_same_type(self):
         assert Dict(Integer()).load({'foo': 123, 'bar': 456}) == \
             {'foo': 123, 'bar': 456}
@@ -618,10 +626,20 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
         assert Dict({'foo': Integer(), 'bar': String(), 'baz': Boolean()})\
             .load(value) == value
 
+    def test_loading_accepts_any_value_if_value_types_are_not_specified(self):
+        assert Dict()\
+            .load({'foo': 'bar', 'baz': 123}) == {'foo': 'bar', 'baz': 123}
+
     def test_loading_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).load(['1', '2'])
         assert exc_info.value.messages == Dict.default_error_messages['invalid']
+
+    def test_loading_dict_with_incorrect_key_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Dict(Any(), key_type=Integer()).load({'123': 'foo', 'bar': 'baz'})
+        assert exc_info.value.messages == \
+            {'bar': Integer.default_error_messages['invalid']}
 
     def test_loading_dict_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -644,11 +662,27 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
                  validate=[constant_fail_validator(message1)]).load([1, 2, 3])
         assert validate.called == 0
 
+    def test_loading_dict_with_incorrect_key_value_and_incorrect_value_raises_ValidationError_with_both_errors(self):
+        key_error = 'Key should be integer'
+        with pytest.raises(ValidationError) as exc_info:
+            Dict(String(), key_type=Integer(error_messages={'invalid': key_error}))\
+                .load({123: 'foo', 'bar': 456})
+        assert exc_info.value.messages == \
+            {'bar': [key_error, String.default_error_messages['invalid']]}
+
     def test_loading_passes_context_to_inner_type_load(self):
         inner_type = SpyType()
         context = object()
         Dict(inner_type).load({'foo': 123}, context)
         assert inner_type.load_context == context
+
+    def test_dumping_dict_with_custom_key_type(self):
+        assert Dict(Any(), key_type=Transform(Integer(), post_dump=str))\
+            .dump({123: 'foo', 456: 'bar'}) == {'123': 'foo', '456': 'bar'}
+
+    def test_dumping_accepts_any_key_if_key_type_is_not_specified(self):
+        assert Dict(Any())\
+            .dump({'123': 'foo', 456: 'bar'}) == {'123': 'foo', 456: 'bar'}
 
     def test_dumping_dict_with_values_of_the_same_type(self):
         assert Dict(Integer()).dump({'foo': 123, 'bar': 456}) == \
@@ -659,16 +693,35 @@ class TestDict(RequiredTestsMixin, ValidationTestsMixin):
         assert Dict({'foo': Integer(), 'bar': String(), 'baz': Boolean()})\
             .load(value) == value
 
+    def test_dumping_accepts_any_value_if_value_types_are_not_specified(self):
+        assert Dict()\
+            .dump({'foo': 'bar', 'baz': 123}) == {'foo': 'bar', 'baz': 123}
+
     def test_dumping_non_dict_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(()).dump('1, 2, 3')
         assert exc_info.value.messages == Dict.default_error_messages['invalid']
+
+    def test_dumping_dict_with_incorrect_key_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Dict(Any(), key_type=Transform(Integer(), post_dump=str))\
+                .dump({123: 'foo', 'bar': 'baz'})
+        assert exc_info.value.messages == \
+            {'bar': Integer.default_error_messages['invalid']}
 
     def test_dumping_dict_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Dict(Integer()).dump({'foo': 1, 'bar': 'abc'})
         message = Integer.default_error_messages['invalid']
         assert exc_info.value.messages == {'bar': message}
+
+    def test_dumping_dict_with_incorrect_key_value_and_incorrect_value_raises_ValidationError_with_both_errors(self):
+        key_error = 'Key should be integer'
+        with pytest.raises(ValidationError) as exc_info:
+            Dict(String(), key_type=Integer(error_messages={'invalid': key_error}))\
+                .dump({123: 'foo', 'bar': 456})
+        assert exc_info.value.messages == \
+            {'bar': [key_error, String.default_error_messages['invalid']]}
 
     def test_dumping_passes_context_to_inner_type_dump(self):
         inner_type = SpyType()

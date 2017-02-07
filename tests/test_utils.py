@@ -20,6 +20,11 @@ class ObjCallableDummy:
         return 42
 
 
+class ObjClassDummy:
+    def __init__(self, a, b, c):
+        self.args = (a, b, c)
+
+
 class TestCallWithContext:
     def test_calls_function_with_given_arguments(self):
         class NonLocal:
@@ -68,6 +73,20 @@ class TestCallWithContext:
         obj = ObjCallableDummy()
         call_with_context(obj, context, 1, 'foo')
         assert obj.args == (1, 'foo', context)
+
+    def test_calls_class_with_given_arguments(self):
+        context = object()
+        result = call_with_context(ObjClassDummy, context, 1, 'foo', True)
+        assert result.args == (1, 'foo', True)
+
+    def test_calls_class_with_extra_context_argument_if_function_accepts_more_arguments_than_given(self):
+        context = object()
+        result = call_with_context(ObjClassDummy, context, 1, 'foo')
+        assert result.args == (1, 'foo', context)
+
+    def test_calls_builtin_with_given_arguments(self):
+        context = object()
+        assert call_with_context(str, context, 123) == '123'
 
 
 class TestToCamelCase:
