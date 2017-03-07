@@ -83,13 +83,15 @@ class Type(ErrorMessagesMixin, object):
         'required': 'Value is required',
     }
 
-    def __init__(self, validate=None, *args, **kwargs):
+    def __init__(self, name=None, description=None, validate=None, *args, **kwargs):
         super(Type, self).__init__(*args, **kwargs)
         if validate is None:
             validate = []
         elif callable(validate):
             validate = [validate]
 
+        self.name = name
+        self.description = description
         self._validators = ValidatorCollection(validate)
 
     def validate(self, data, context=None):
@@ -1298,8 +1300,36 @@ class Object(Type):
         )
 
 
-class Optional(Type):
-    """A wrapper type which makes values optional: if value is missing or None,
+class Modifier(Type):
+    """Base class for modifiers - a wrapper for types that modify
+    how those types work. Also, it tries to be as transparent as possible
+    in regard to inner type, so it proxies all unknown attributes to inner type.
+
+    :param Type inner_type: Actual type that should be optional.
+    """
+    def __init__(self, inner_type, **kwargs):
+        super(Modifier, self).__init__(
+            **dict({'name': inner_type.name,
+                    'description': inner_type.description},
+                   **kwargs)
+        )
+        self.inner_type = inner_type
+
+    def __hasattr__(self, name):
+        return hasattr(self.inner_type, name)
+
+    def __getattr__(self, name):
+        return getattr(self.inner_type, name)
+
+    def __repr__(self):
+        return '<{klass} {inner_type}>'.format(
+            klass=self.__class__.__name__,
+            inner_type=repr(self.inner_type),
+        )
+
+
+class Optional(Modifier):
+    """A modifier which makes values optional: if value is missing or None,
     it will not transform it with an inner type but instead will return None
     (or any other configured value).
 
@@ -1326,8 +1356,7 @@ class Optional(Type):
     def __init__(self, inner_type,
                  load_default=None, dump_default=None,
                  **kwargs):
-        super(Optional, self).__init__(**kwargs)
-        self.inner_type = inner_type
+        super(Optional, self).__init__(inner_type, **kwargs)
         if not callable(load_default):
             load_default = constant(load_default)
         if not callable(dump_default):
@@ -1358,7 +1387,7 @@ class Optional(Type):
         )
 
 
-class LoadOnly(Type):
+class LoadOnly(Modifier):
     """A wrapper type which proxies loading to inner type but always returns
     :obj:`MISSING` on dump.
 
@@ -1371,24 +1400,14 @@ class LoadOnly(Type):
 
     :param Type inner_type: Data type.
     """
-    def __init__(self, inner_type):
-        super(LoadOnly, self).__init__()
-        self.inner_type = inner_type
-
     def load(self, data, *args, **kwargs):
         return self.inner_type.load(data, *args, **kwargs)
 
-    def dump(self, data, context=None):
+    def dump(self, data, *args, **kwargs):
         return MISSING
 
-    def __repr__(self):
-        return '<{klass} {inner_type}>'.format(
-            klass=self.__class__.__name__,
-            inner_type=repr(self.inner_type),
-        )
 
-
-class DumpOnly(Type):
+class DumpOnly(Modifier):
     """A wrapper type which proxies dumping to inner type but always returns
     :obj:`MISSING` on load.
 
@@ -1401,24 +1420,14 @@ class DumpOnly(Type):
 
     :param Type inner_type: Data type.
     """
-    def __init__(self, inner_type):
-        super(DumpOnly, self).__init__()
-        self.inner_type = inner_type
-
     def load(self, data, *args, **kwargs):
         return MISSING
 
     def dump(self, data, *args, **kwargs):
         return self.inner_type.dump(data, *args, **kwargs)
 
-    def __repr__(self):
-        return '<{klass} {inner_type}>'.format(
-            klass=self.__class__.__name__,
-            inner_type=repr(self.inner_type),
-        )
 
-
-class Transform(Type):
+class Transform(Modifier):
     """A wrapper type which allows us to convert data structures to an inner type,
     then loaded or dumped with a customized format.
 
@@ -1455,8 +1464,7 @@ class Transform(Type):
     def __init__(self, inner_type,
                  pre_load=identity, post_load=identity,
                  pre_dump=identity, post_dump=identity):
-        super(Transform, self).__init__()
-        self.inner_type = inner_type
+        super(Transform, self).__init__(inner_type)
         self.pre_load = make_context_aware(pre_load, 1)
         self.post_load = make_context_aware(post_load, 1)
         self.pre_dump = make_context_aware(pre_dump, 1)
@@ -1478,12 +1486,6 @@ class Transform(Type):
                 context,
             ),
             context,
-        )
-
-    def __repr__(self):
-        return '<{klass} {inner_type}>'.format(
-            klass=self.__class__.__name__,
-            inner_type=repr(self.inner_type),
         )
 
 

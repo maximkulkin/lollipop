@@ -55,7 +55,7 @@ class SpyValidator(Validator):
 
 class SpyType(Type):
     def __init__(self, load_result=None, dump_result=None):
-        super(Type, self).__init__()
+        super(SpyType, self).__init__()
         self.loaded = None
         self.load_called = False
         self.load_context = None
@@ -93,9 +93,21 @@ class SpyTypeWithLoadInto(SpyType):
         return self.load_into_result or data
 
 
+class NameDescriptionTestsMixin(object):
+    """Mixin that adds tests for adding name and description for type.
+    Host class should define `tested_type` properties.
+    """
+    def test_name(self):
+        assert self.tested_type(name='foo').name == 'foo'
+
+    def test_description(self):
+        assert self.tested_type(description='Just a description').description \
+            == 'Just a description'
+
+
 class RequiredTestsMixin:
     """Mixin that adds tests for reacting to missing/None values during load/dump.
-    Host class should define `tested_type` properties.
+    Host class should define `tested_type` property.
     """
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -169,7 +181,7 @@ class ValidationTestsMixin:
             .validate(self.valid_data) == [message1, message2]
 
 
-class TestString(RequiredTestsMixin, ValidationTestsMixin):
+class TestString(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = String
     valid_data = 'foo'
     valid_value = 'foo'
@@ -191,7 +203,7 @@ class TestString(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == String.default_error_messages['invalid']
 
 
-class TestNumber(RequiredTestsMixin, ValidationTestsMixin):
+class TestNumber(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Number
     valid_data = 1.23
     valid_value = 1.23
@@ -257,7 +269,7 @@ class TestFloat:
         assert exc_info.value.messages == Float.default_error_messages['invalid']
 
 
-class TestBoolean(RequiredTestsMixin, ValidationTestsMixin):
+class TestBoolean(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Boolean
     valid_data = True
     valid_value = True
@@ -281,7 +293,7 @@ class TestBoolean(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
 
-class TestDateTime(RequiredTestsMixin, ValidationTestsMixin):
+class TestDateTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = DateTime
     valid_data = '2016-07-28T11:22:33UTC'
     valid_value = datetime.datetime(2016, 7, 28, 11, 22, 33)
@@ -357,7 +369,7 @@ class TestDateTime(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == 'Data 123 should be string'
 
 
-class TestDate(RequiredTestsMixin, ValidationTestsMixin):
+class TestDate(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Date
     valid_data = '2016-07-28'
     valid_value = datetime.date(2016, 7, 28)
@@ -425,7 +437,7 @@ class TestDate(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == 'Data 123 should be string'
 
 
-class TestTime(RequiredTestsMixin, ValidationTestsMixin):
+class TestTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = Time
     valid_data = '11:22:33'
     valid_value = datetime.time(11, 22, 33)
@@ -487,7 +499,7 @@ class TestTime(RequiredTestsMixin, ValidationTestsMixin):
         assert exc_info.value.messages == 'Data 123 should be string'
 
 
-class TestList(RequiredTestsMixin, ValidationTestsMixin):
+class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(List, String())
     valid_data = ['foo', 'bar']
     valid_value = ['foo', 'bar']
@@ -548,7 +560,7 @@ class TestList(RequiredTestsMixin, ValidationTestsMixin):
         assert inner_type.dump_context == context
 
 
-class TestTuple(RequiredTestsMixin, ValidationTestsMixin):
+class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Tuple, [Integer(), Integer()])
     valid_data = [123, 456]
     valid_value = [123, 456]
@@ -604,7 +616,7 @@ class TestTuple(RequiredTestsMixin, ValidationTestsMixin):
         assert inner_type.dump_context == context
 
 
-class TestDict(RequiredTestsMixin, ValidationTestsMixin):
+class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Dict, Integer())
     valid_data = {'foo': 123, 'bar': 456}
     valid_value = {'foo': 123, 'bar': 456}
@@ -1308,7 +1320,9 @@ class TestFunctionField:
         assert field_type.dump_context == context
 
 
-class TestConstant:
+class TestConstant(NameDescriptionTestsMixin):
+    tested_type = partial(Constant, 42)
+
     def test_loading_always_returns_missing(self):
         assert Constant(42).load(42) == MISSING
 
@@ -1379,7 +1393,7 @@ class SpyField(Field):
         self.load_into_context = context
 
 
-class TestObject(RequiredTestsMixin, ValidationTestsMixin):
+class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Object, {'foo': String(), 'bar': Integer()})
     valid_data = {'foo': 'hello', 'bar': 123}
     valid_value = {'foo': 'hello', 'bar': 123}
@@ -2077,7 +2091,22 @@ class TestOptional:
         assert spy.context is context
 
 
-class TestLoadOnly:
+class ProxyNameDescriptionTestsMixin(object):
+    """Mixin that adds tests for proxying name and description attributes
+    to an inner type.
+    Host class should define `tested_type` properties.
+    """
+    def test_name(self):
+        assert self.tested_type(Type(name='foo')).name == 'foo'
+
+    def test_description(self):
+        assert self.tested_type(Type(description='Just a description')).description \
+            == 'Just a description'
+
+
+class TestLoadOnly(ProxyNameDescriptionTestsMixin):
+    tested_type = LoadOnly
+
     def test_loading_returns_inner_type_load_result(self):
         inner_type = SpyType(load_result='bar')
         assert LoadOnly(inner_type).load('foo') == 'bar'
@@ -2098,7 +2127,9 @@ class TestLoadOnly:
         assert not inner_type.dump_called
 
 
-class TestDumpOnly:
+class TestDumpOnly(ProxyNameDescriptionTestsMixin):
+    tested_type = DumpOnly
+
     def test_loading_always_returns_missing(self):
         assert DumpOnly(Any()).load('foo') == MISSING
 
@@ -2119,7 +2150,9 @@ class TestDumpOnly:
         assert inner_type.dump_context == context
 
 
-class TestTransform:
+class TestTransform(ProxyNameDescriptionTestsMixin):
+    tested_type = Transform
+
     def test_loading_calls_pre_load_with_original_value(self):
         class Callbacks():
             def pre_load(self, data):
