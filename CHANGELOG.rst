@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+1.1.1 (2017-03-07)
+++++++++++++++++++
+
+* Add "name" and "description" fields to types
+* Updated modifier types to proxy unknown attributes to inner types
+
 1.1 (2017-02-07)
 ++++++++++++++++
 
