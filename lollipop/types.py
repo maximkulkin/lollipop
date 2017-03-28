@@ -92,7 +92,7 @@ class Type(ErrorMessagesMixin, object):
 
         self.name = name
         self.description = description
-        self._validators = ValidatorCollection(validate)
+        self.validators = ValidatorCollection(validate)
 
     def validate(self, data, context=None):
         """Takes serialized data and returns validation errors or None.
@@ -117,7 +117,7 @@ class Type(ErrorMessagesMixin, object):
         :raises: :exc:`~lollipop.errors.ValidationError`
         """
         errors_builder = ValidationErrorBuilder()
-        for validator in self._validators:
+        for validator in self.validators:
             try:
                 validator(data, context)
             except ValidationError as ve:
@@ -1507,12 +1507,12 @@ def validated_type(base_type, name=None, validate=None):
         class Ipv4Address(String):
             def __init__(self, *args, **kwargs):
                 super(Ipv4Address, self).__init__(*args, **kwargs)
-                self._validators.insert(0, Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address'))
+                self.validators.insert(0, Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address'))
 
         class Percentage(Integer):
             def __init__(self, *args, **kwargs):
                 super(Percentage, self).__init__(*args, **kwargs)
-                self._validators.insert(0, Range(0, 100))
+                self.validators.insert(0, Range(0, 100))
 
     :param Type base_type: Base type for a new type.
     :param name str: Optional class name for new type
@@ -1532,6 +1532,6 @@ def validated_type(base_type, name=None, validate=None):
         def __init__(self, *args, **kwargs):
             super(ValidatedSubtype, self).__init__(*args, **kwargs)
             for validator in reversed(validate):
-                self._validators.insert(0, validator)
+                self.validators.insert(0, validator)
 
     return ValidatedSubtype
