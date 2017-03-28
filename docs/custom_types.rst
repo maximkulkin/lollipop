@@ -32,7 +32,7 @@ allowing users to add more validations: ::
     class Email(types.String):
         def __init__(self, *args, **kwargs):
             super(Email, self).__init__(*args, **kwargs)
-            self._validators.insert(0, validators.Regexp(EMAIL_REGEXP))
+            self.validators.insert(0, validators.Regexp(EMAIL_REGEXP))
 
 To simplify creating new types by adding validators to existing types there is
 a helper function - :func:`~lollipop.types.validated_type`: ::

@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin
-from lollipop.compat import string_types
+from lollipop.compat import string_types, iteritems
 from lollipop.utils import make_context_aware, is_list, identity
 import re
 
@@ -95,7 +95,7 @@ class Range(Validator):
     def _fail(self, key, **kwargs):
         super(Range, self)._fail(key, min=self.min, max=self.max, **kwargs)
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if self.min is not None and self.max is not None:
             if value < self.min or value > self.max:
                 self._fail('range', data=value)
@@ -146,7 +146,7 @@ class Length(Validator):
         super(Length, self)._fail(key, exact=self.exact, min=self.min, max=self.max,
                                   **kwargs)
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         length = len(value)
         if self.exact is not None:
             if length != self.exact:
@@ -168,7 +168,13 @@ class Length(Validator):
                 exact=self.exact
             )
         else:
-            super(Length, self).__repr__()
+            return '<{klass} {properties}>'.format(
+                klass= self.__class__.__name__,
+                properties=' '.join(['%s=%s' % (k, repr(v))
+                                    for k, v in iteritems({'min': self.min,
+                                                           'max': self.max})
+                                    if v is not None])
+            )
 
 
 class NoneOf(Validator):
@@ -189,7 +195,7 @@ class NoneOf(Validator):
         if error is not None:
             self._error_messages['invalid'] = error
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if value in self.values:
             self._fail('invalid', data=value, values=self.values)
 
@@ -218,7 +224,7 @@ class AnyOf(Validator):
         if error is not None:
             self._error_messages['invalid'] = error
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if value not in self.choices:
             self._fail('invalid', data=value, choices=self.choices)
 
@@ -251,7 +257,7 @@ class Regexp(Validator):
         if error is not None:
             self._error_messages['invalid'] = error
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if self.regexp.match(value) is None:
             self._fail('invalid', data=value, regexp=self.regexp.pattern)
 
@@ -284,7 +290,7 @@ class Unique(Validator):
         if error is not None:
             self._error_messages['unique'] = error
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if not is_list(value):
             self._fail('invalid')
 
@@ -316,7 +322,7 @@ class Each(Validator):
             validators = [validators]
         self.validators = validators
 
-    def __call__(self, value):
+    def __call__(self, value, context=None):
         if not is_list(value):
             self._fail('invalid', data=value)
 
