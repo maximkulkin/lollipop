@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+1.1.2 (2017-03-28)
+++++++++++++++++++
+
+* Make all builtin validators context-aware
+* Make validators part of public type interface
+* Fix repr for Length validator
+
 1.1.1 (2017-03-07)
 ++++++++++++++++++
 
