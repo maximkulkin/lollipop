@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin
-from lollipop.compat import string_types
+from lollipop.compat import string_types, iteritems
 from lollipop.utils import make_context_aware, is_list, identity
 import re
 
@@ -168,7 +168,13 @@ class Length(Validator):
                 exact=self.exact
             )
         else:
-            super(Length, self).__repr__()
+            return '<{klass} {properties}>'.format(
+                klass= self.__class__.__name__,
+                properties=' '.join(['%s=%s' % (k, repr(v))
+                                    for k, v in iteritems({'min': self.min,
+                                                           'max': self.max})
+                                    if v is not None])
+            )
 
 
 class NoneOf(Validator):
