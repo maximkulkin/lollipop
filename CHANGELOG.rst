@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+1.1.3 (2017-05-10)
+++++++++++++++++++
+
+* Fix exports for Date, Time and DateTime types
+* Update Object type default constructor to return object-like value
+
 1.1.2 (2017-03-28)
 ++++++++++++++++++
 
