@@ -1526,6 +1526,13 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         assert foo_type.load_context == context
         assert bar_type.load_context == context
 
+    def test_constructing_objects_with_default_constructor_on_load(self):
+        result = Object({'foo': String(), 'bar': Integer()})\
+            .load({'foo': 'hello', 'bar': 123})
+
+        assert result.foo == 'hello'
+        assert result.bar == 123
+
     def test_constructing_custom_objects_on_load(self):
         MyData = namedtuple('MyData', ['foo', 'bar'])
         assert Object({'foo': String(), 'bar': Integer()}, constructor=MyData)\
