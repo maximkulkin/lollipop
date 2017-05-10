@@ -22,5 +22,10 @@ else:
 
 if PY26:
     from .ordereddict import OrderedDict
+    from UserDict import DictMixin
 else:
     from collections import OrderedDict
+    try:
+        from collections import MutableMapping as DictMixin
+    except ImportError:
+        from collections.abc import MutableMapping as DictMixin

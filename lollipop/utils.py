@@ -1,5 +1,6 @@
 import inspect
 import re
+from lollipop.compat import DictMixin, iterkeys
 
 
 def identity(value):
@@ -66,3 +67,61 @@ def to_snake_case(s):
 def to_camel_case(s):
     """Converts snake-case identifiers to camel-case."""
     return re.sub('_([a-z])', lambda m: m.group(1).upper(), s)
+
+
+class OpenStruct(DictMixin):
+    """A dictionary that also allows accessing values through object attributes."""
+    def __init__(self, data=None):
+        self.__dict__.update({'_data': data or {}})
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        self._data[key] = value
+
+    def __delitem__(self, key):
+        del self._data[key]
+
+    def __iter__(self):
+        for key in self._data:
+            yield key
+
+    def __len__(self):
+        return len(self._data)
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def keys(self):
+        return self._data.keys()
+
+    def iterkeys(self):
+        for k in iterkeys(self._data):
+            yield k
+
+    def iteritems(self):
+        for k, v in self._data.iteritems():
+            yield k, v
+
+    def __hasattr__(self, name):
+        return name in self._data
+
+    def __getattr__(self, name):
+        if name not in self._data:
+            raise AttributeError(name)
+        return self._data[name]
+
+    def __setattr__(self, name, value):
+        self._data[name] = value
+
+    def __delattr__(self, name):
+        if name not in self._data:
+            raise AttributeError(name)
+        del self._data[name]
+
+    def __repr__(self):
+        return '<%s %s>' % (
+            self.__class__.__name__,
+            ' '.join('%s=%s' % (k, repr(v)) for k, v in self._data.iteritems()),
+        )
