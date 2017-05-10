@@ -1,6 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from lollipop.utils import is_list, is_dict, make_context_aware, constant, identity
+from lollipop.utils import is_list, is_dict, make_context_aware, \
+    constant, identity, OpenStruct
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -1186,8 +1187,10 @@ class Object(Type):
         errors_builder.raise_errors()
 
         result = super(Object, self).load(result, *args, **kwargs)
-        if self.constructor:
-            result = self.constructor(**result)
+
+        result = self.constructor(**result) \
+            if self.constructor else OpenStruct(result)
+
         return result
 
     def load_into(self, obj, data, inplace=True, *args, **kwargs):
