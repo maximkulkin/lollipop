@@ -542,6 +542,10 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
     def test_dumping_list_value(self):
         assert List(String()).dump(['foo', 'bar', 'baz']) == ['foo', 'bar', 'baz']
 
+    def test_dumping_sequence_value(self):
+        assert List(String()).dump(('foo', 'bar', 'baz')) == ['foo', 'bar', 'baz']
+        assert List(String()).dump('foobar') == ['f', 'o', 'o', 'b', 'a', 'r']
+
     def test_dumping_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump(123)
@@ -596,18 +600,30 @@ class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMi
         assert inner_type.load_context == context
 
     def test_dump_tuple(self):
-        assert Tuple([Integer(), Integer()]).dump((123, 456)) == [123, 456]
+        assert Tuple([String(), Integer()]).dump(('hello', 123)) == ['hello', 123]
+
+    def test_dump_sequence(self):
+        assert Tuple([String(), Integer()]).dump(['hello', 123]) == ['hello', 123]
 
     def test_dumping_non_tuple_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Tuple([String()]).dump(123)
         assert exc_info.value.messages == Tuple.default_error_messages['invalid']
 
+    def test_dumping_sequence_of_incorrect_length_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Tuple([String(), Integer()]).dump(['hello', 123, 456])
+        assert exc_info.value.messages == \
+            Tuple.default_error_messages['invalid_length'].format(
+                expected_length=2,
+                actual_length=3,
+            )
+
     def test_dumping_tuple_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            Tuple([String(), String()]).dump((123, 456))
+            Tuple([String(), String()]).dump(('hello', 456))
         message = String.default_error_messages['invalid']
-        assert exc_info.value.messages == {0: message, 1: message}
+        assert exc_info.value.messages == {1: message}
 
     def test_dumping_tuple_passes_context_to_inner_type_dump(self):
         inner_type = SpyType()

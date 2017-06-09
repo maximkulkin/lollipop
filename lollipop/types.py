@@ -444,7 +444,9 @@ class Tuple(Type):
             self._fail('invalid')
 
         if len(data) != len(self.item_types):
-            self._fail('invalid_length', expected_length=len(self.item_types))
+            self._fail('invalid_length',
+                       expected_length=len(self.item_types),
+                       actual_length=len(data))
 
         errors_builder = ValidationErrorBuilder()
         result = []
