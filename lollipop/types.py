@@ -422,6 +422,7 @@ class Tuple(Type):
     Example: ::
 
         Tuple([String(), Integer(), Boolean()]).load(['foo', 123, False])
+        # => ('foo', 123, False)
 
     :param list item_types: List of item types.
     :param kwargs: Same keyword arguments as for :class:`Type`.
@@ -454,7 +455,7 @@ class Tuple(Type):
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(Tuple, self).load(result, *args, **kwargs)
+        return tuple(super(Tuple, self).load(result, *args, **kwargs))
 
     def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:

@@ -563,15 +563,15 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMixin):
     tested_type = partial(Tuple, [Integer(), Integer()])
     valid_data = [123, 456]
-    valid_value = [123, 456]
+    valid_value = (123, 456)
 
     def test_loading_tuple_with_values_of_same_type(self):
         assert Tuple([Integer(), Integer()]).load([123, 456]) == \
-            [123, 456]
+            (123, 456)
 
     def test_loading_tuple_with_values_of_different_type(self):
         assert Tuple([String(), Integer(), Boolean()]).load(['foo', 123, False]) == \
-            ['foo', 123, False]
+            ('foo', 123, False)
 
     def test_loading_non_tuple_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -596,7 +596,7 @@ class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMi
         assert inner_type.load_context == context
 
     def test_dump_tuple(self):
-        assert Tuple([Integer(), Integer()]).dump([123, 456]) == [123, 456]
+        assert Tuple([Integer(), Integer()]).dump((123, 456)) == [123, 456]
 
     def test_dumping_non_tuple_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -605,14 +605,14 @@ class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMi
 
     def test_dumping_tuple_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            Tuple([String(), String()]).dump([123, 456])
+            Tuple([String(), String()]).dump((123, 456))
         message = String.default_error_messages['invalid']
         assert exc_info.value.messages == {0: message, 1: message}
 
     def test_dumping_tuple_passes_context_to_inner_type_dump(self):
         inner_type = SpyType()
         context = object()
-        Tuple([inner_type, inner_type]).dump(['foo','foo'], context)
+        Tuple([inner_type, inner_type]).dump(('foo','foo'), context)
         assert inner_type.dump_context == context
 
 
