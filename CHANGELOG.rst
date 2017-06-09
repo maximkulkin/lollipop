@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+1.1.4 (2017-06-08)
+++++++++++++++++++
+
+* Add support for serializing sequences and mappings other than list and dict
+* Change Tuple type to return tuples on load()
+
 1.1.3 (2017-05-10)
 ++++++++++++++++++
 
