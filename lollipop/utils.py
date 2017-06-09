@@ -1,6 +1,7 @@
 import inspect
 import re
 from lollipop.compat import DictMixin, iterkeys
+import collections
 
 
 def identity(value):
@@ -14,14 +15,18 @@ def constant(value):
     return func
 
 
-def is_list(value):
+def is_sequence(value):
     """Returns True if value supports list interface; False - otherwise"""
-    return isinstance(value, list)
+    return isinstance(value, collections.Sequence)
 
-
-def is_dict(value):
+def is_mapping(value):
     """Returns True if value supports dict interface; False - otherwise"""
-    return isinstance(value, dict)
+    return isinstance(value, collections.Mapping)
+
+
+# Backward compatibility
+is_list = is_sequence
+is_dict = is_mapping
 
 
 def make_context_aware(func, numargs):

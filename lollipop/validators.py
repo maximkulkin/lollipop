@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin
 from lollipop.compat import string_types, iteritems
-from lollipop.utils import make_context_aware, is_list, identity
+from lollipop.utils import make_context_aware, is_sequence, identity
 import re
 
 
@@ -291,7 +291,7 @@ class Unique(Validator):
             self._error_messages['unique'] = error
 
     def __call__(self, value, context=None):
-        if not is_list(value):
+        if not is_sequence(value):
             self._fail('invalid')
 
         seen = set()
@@ -318,12 +318,12 @@ class Each(Validator):
 
     def __init__(self, validators, **kwargs):
         super(Validator, self).__init__(**kwargs)
-        if not is_list(validators):
+        if not is_sequence(validators):
             validators = [validators]
         self.validators = validators
 
     def __call__(self, value, context=None):
-        if not is_list(value):
+        if not is_sequence(value):
             self._fail('invalid', data=value)
 
         error_builder = ValidationErrorBuilder()

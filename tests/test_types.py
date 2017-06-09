@@ -509,7 +509,7 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_loading_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            List(String()).load('1, 2, 3')
+            List(String()).load(123)
         assert exc_info.value.messages == List.default_error_messages['invalid']
 
     def test_loading_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
@@ -544,7 +544,7 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_dumping_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            List(String()).dump('1, 2, 3')
+            List(String()).dump(123)
         assert exc_info.value.messages == List.default_error_messages['invalid']
 
     def test_dumping_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
@@ -600,7 +600,7 @@ class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMi
 
     def test_dumping_non_tuple_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            Tuple(String()).dump('foo')
+            Tuple([String()]).dump(123)
         assert exc_info.value.messages == Tuple.default_error_messages['invalid']
 
     def test_dumping_tuple_with_items_of_incorrect_type_raises_ValidationError(self):

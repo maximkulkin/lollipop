@@ -318,7 +318,7 @@ class TestRegexp:
 class TestUnique:
     def test_raising_ValidationError_if_value_is_not_collection(self):
         with raises(ValidationError) as exc_info:
-            Unique()('foo')
+            Unique()(123)
         assert exc_info.value.messages == Unique.default_error_messages['invalid']
 
     def test_matching_empty_collection(self):
@@ -371,7 +371,7 @@ is_small = Predicate(lambda x: x <= 5, 'Value should be small')
 class TestEach:
     def test_raising_ValidationError_if_value_is_not_collection(self):
         with raises(ValidationError) as exc_info:
-            Each(lambda x: x)('foo')
+            Each(lambda x: x)(123)
         assert exc_info.value.messages == Each.default_error_messages['invalid']
 
     def test_matching_empty_collections(self):
