@@ -1,6 +1,6 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
-from lollipop.utils import is_list, is_dict, make_context_aware, \
+from lollipop.utils import is_sequence, is_mapping, make_context_aware, \
     constant, identity, OpenStruct
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
@@ -377,7 +377,7 @@ class List(Type):
             self._fail('required')
 
         # TODO: Make more intelligent check for collections
-        if not is_list(data):
+        if not is_sequence(data):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -395,7 +395,7 @@ class List(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_list(value):
+        if not is_sequence(value):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -422,6 +422,7 @@ class Tuple(Type):
     Example: ::
 
         Tuple([String(), Integer(), Boolean()]).load(['foo', 123, False])
+        # => ('foo', 123, False)
 
     :param list item_types: List of item types.
     :param kwargs: Same keyword arguments as for :class:`Type`.
@@ -439,11 +440,13 @@ class Tuple(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not is_list(data):
+        if not is_sequence(data):
             self._fail('invalid')
 
         if len(data) != len(self.item_types):
-            self._fail('invalid_length', expected_length=len(self.item_types))
+            self._fail('invalid_length',
+                       expected_length=len(self.item_types),
+                       actual_length=len(data))
 
         errors_builder = ValidationErrorBuilder()
         result = []
@@ -454,13 +457,13 @@ class Tuple(Type):
                 errors_builder.add_errors({idx: ve.messages})
         errors_builder.raise_errors()
 
-        return super(Tuple, self).load(result, *args, **kwargs)
+        return tuple(super(Tuple, self).load(result, *args, **kwargs))
 
     def dump(self, value, *args, **kwargs):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_list(value):
+        if not is_sequence(value):
             self._fail('invalid')
 
         if len(value) != len(self.item_types):
@@ -560,7 +563,7 @@ class OneOf(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if is_dict(self.types) and self.load_hint:
+        if is_mapping(self.types) and self.load_hint:
             type_id = self.load_hint(data)
             if type_id not in self.types:
                 self._fail('unknown_type_id', type_id=type_id)
@@ -569,7 +572,8 @@ class OneOf(Type):
             result = item_type.load(data, *args, **kwargs)
             return super(OneOf, self).load(result, *args, **kwargs)
         else:
-            for item_type in (self.types.values() if is_dict(self.types) else self.types):
+            for item_type in (self.types.values()
+                              if is_mapping(self.types) else self.types):
                 try:
                     result = item_type.load(data, *args, **kwargs)
                     return super(OneOf, self).load(result, *args, **kwargs)
@@ -582,7 +586,7 @@ class OneOf(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if is_dict(self.types) and self.dump_hint:
+        if is_mapping(self.types) and self.dump_hint:
             type_id = self.dump_hint(data)
             if type_id not in self.types:
                 self._fail('unknown_type_id', type_id=type_id)
@@ -591,7 +595,8 @@ class OneOf(Type):
             result = item_type.dump(data, *args, **kwargs)
             return super(OneOf, self).dump(result, *args, **kwargs)
         else:
-            for item_type in (self.types.values() if is_dict(self.types) else self.types):
+            for item_type in (self.types.values()
+                              if is_mapping(self.types) else self.types):
                 try:
                     result = item_type.dump(data, *args, **kwargs)
                     return super(OneOf, self).dump(result, *args, **kwargs)
@@ -668,7 +673,7 @@ class Dict(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not is_dict(data):
+        if not is_mapping(data):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -695,7 +700,7 @@ class Dict(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_dict(value):
+        if not is_mapping(value):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -1091,10 +1096,10 @@ class Object(Type):
 
         if isinstance(bases_or_fields, Type):
             bases = [bases_or_fields]
-        if is_list(bases_or_fields) and \
+        if is_sequence(bases_or_fields) and \
                 all([isinstance(base, Type) for base in bases_or_fields]):
             bases = bases_or_fields
-        elif is_list(bases_or_fields) or is_dict(bases_or_fields):
+        elif is_sequence(bases_or_fields) or is_mapping(bases_or_fields):
             if fields is None:
                 bases = []
                 fields = bases_or_fields
@@ -1108,9 +1113,9 @@ class Object(Type):
         self._allow_extra_fields = allow_extra_fields
         self._immutable = immutable
         self._ordered = ordered
-        if only is not None and not is_list(only):
+        if only is not None and not is_sequence(only):
             only = [only]
-        if exclude is not None and not is_list(exclude):
+        if exclude is not None and not is_sequence(exclude):
             exclude = [exclude]
         self._only = only
         self._exclude = exclude
@@ -1155,7 +1160,8 @@ class Object(Type):
         if fields is not None:
             all_fields += [
                 (name, self._normalize_field(field))
-                for name, field in (iteritems(fields) if is_dict(fields) else fields)
+                for name, field in (iteritems(fields)
+                                    if is_mapping(fields) else fields)
             ]
 
         return OrderedDict(all_fields)
@@ -1164,7 +1170,7 @@ class Object(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if not is_dict(data):
+        if not is_mapping(data):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -1213,7 +1219,7 @@ class Object(Type):
         if data is None:
             self._fail('required')
 
-        if not is_dict(data):
+        if not is_mapping(data):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -1528,7 +1534,7 @@ def validated_type(base_type, name=None, validate=None):
     """
     if validate is None:
         validate = []
-    if not is_list(validate):
+    if not is_sequence(validate):
         validate = [validate]
 
     class ValidatedSubtype(base_type):
