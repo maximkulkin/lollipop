@@ -641,6 +641,30 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
         assert Dict(Any(), key_type=Integer())\
             .load({'123': 'foo', '456': 'bar'}) == {123: 'foo', 456: 'bar'}
 
+    def test_loading_dict_with_custom_key_type_and_values_of_different_types(self):
+        assert Dict({1: Integer(), 2: String()}, key_type=Integer())\
+            .load({'1': '123', '2': 'bar'}) == {1: 123, 2: 'bar'}
+
+    def test_loading_skips_key_value_if_custom_key_type_loads_to_missing(self):
+        class CustomKeyType(String):
+            def load(self, data, *args, **kwargs):
+                if data == 'foo':
+                    return MISSING
+                return super(CustomKeyType, self).load(data, *args, **kwargs)
+
+        assert Dict(String(), key_type=CustomKeyType())\
+            .load({'foo': 'hello', 'bar': 'goodbye'}) == {'bar': 'goodbye'}
+
+    def test_loading_skips_key_value_if_value_type_loads_to_missing(self):
+        class CustomValueType(String):
+            def load(self, data, *args, **kwargs):
+                if data == 'foo':
+                    return MISSING
+                return super(CustomValueType, self).load(data, *args, **kwargs)
+
+        assert Dict(CustomValueType())\
+            .load({'key1': 'foo', 'key2': 'bar'}) == {'key2': 'bar'}
+
     def test_loading_accepts_any_key_if_key_type_is_not_specified(self):
         assert Dict(Any())\
             .load({'123': 'foo', 456: 'bar'}) == {'123': 'foo', 456: 'bar'}
@@ -719,7 +743,27 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
     def test_dumping_dict_with_values_of_different_types(self):
         value = {'foo': 1, 'bar': 'hello', 'baz': True}
         assert Dict({'foo': Integer(), 'bar': String(), 'baz': Boolean()})\
-            .load(value) == value
+            .dump(value) == value
+
+    def test_dumping_skips_key_value_if_custom_key_type_loads_to_missing(self):
+        class CustomKeyType(String):
+            def dump(self, data, *args, **kwargs):
+                if data == 'foo':
+                    return MISSING
+                return super(CustomKeyType, self).load(data, *args, **kwargs)
+
+        assert Dict(String(), key_type=CustomKeyType())\
+            .dump({'foo': 'hello', 'bar': 'goodbye'}) == {'bar': 'goodbye'}
+
+    def test_dumping_skips_key_value_if_value_type_loads_to_missing(self):
+        class CustomValueType(String):
+            def dump(self, data, *args, **kwargs):
+                if data == 'foo':
+                    return MISSING
+                return super(CustomValueType, self).load(data, *args, **kwargs)
+
+        assert Dict(CustomValueType())\
+            .dump({'key1': 'foo', 'key2': 'bar'}) == {'key2': 'bar'}
 
     def test_dumping_accepts_any_value_if_value_types_are_not_specified(self):
         assert Dict()\

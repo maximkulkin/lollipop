@@ -679,16 +679,22 @@ class Dict(Type):
         errors_builder = ValidationErrorBuilder()
         result = {}
         for k, v in iteritems(data):
-            value_type = self.value_types.get(k)
-            if value_type is None:
-                continue
             try:
                 k = self.key_type.load(k, *args, **kwargs)
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
+            if k is MISSING:
+                continue
+
+            value_type = self.value_types.get(k)
+            if value_type is None:
+                continue
+
             try:
-                result[k] = value_type.load(v, *args, **kwargs)
+                value = value_type.load(v, *args, **kwargs)
+                if value is not MISSING:
+                    result[k] = value
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
@@ -715,8 +721,13 @@ class Dict(Type):
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
+            if k is MISSING:
+                continue
+
             try:
-                result[k] = value_type.dump(v, *args, **kwargs)
+                value = value_type.dump(v, *args, **kwargs)
+                if value is not MISSING:
+                    result[k] = value
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
