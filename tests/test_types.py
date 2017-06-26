@@ -1610,6 +1610,19 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         unknown = Object.default_error_messages['unknown']
         assert exc_info.value.messages == {'bar': unknown, 'baz': unknown}
 
+    def test_load_loads_extra_fields_if_allow_extra_fields_is_type(self):
+        Object({'foo': String()}, allow_extra_fields=Integer())\
+            .load({'foo': 'hello', 'bar': 123, 'baz': 456}) == \
+            {'foo': 'hello', 'bar': 123, 'baz': 456}
+
+    def test_load_raises_ValidationError_for_invalid_extra_fields_if_allow_extra_fields_is_type(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Object({'foo': String()}, allow_extra_fields=Integer())\
+                .load({'foo': 'hello', 'bar': 123, 'baz': 'goodbye'})
+
+        invalid = Integer.default_error_messages['invalid']
+        assert exc_info.value.messages == {'baz': invalid}
+
     def test_loading_inherited_fields(self):
         Type1 = Object({'foo': String()})
         Type2 = Object(Type1, {'bar': Integer()})
@@ -1685,6 +1698,41 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         assert obj.foo == 'goodbye'
         assert obj.bar == 456
 
+    def test_not_loading_values_into_existing_object_extra_fields_if_allow_extra_fields_is_type(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String()}, allow_extra_fields=True)\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+        assert obj.bar == 123
+
+    def test_loading_values_into_existing_object_extra_fields_if_allow_extra_fields_is_type(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String()}, allow_extra_fields=True)\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+        assert obj.bar == 123
+
+        Object({'foo': String()}, allow_extra_fields=Integer())\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+        assert obj.bar == 456
+
+    def test_loading_values_into_existing_object_extra_fields_if_allow_extra_fields_is_field(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        Object({'foo': String()}, allow_extra_fields=AttributeField(Integer()))\
+            .load_into(obj, {'foo': 'goodbye', 'bar': 456})
+
+        assert obj.bar == 456
+
     def test_loading_values_into_existing_object_returns_that_object(self):
         obj = AttributeDummy()
         obj.foo = 'hello'
@@ -1702,6 +1750,26 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         Object({'foo': String(), 'bar': Integer()}, validate=validator)\
             .load_into(obj, {'foo': 'goodbye'})
         assert validator.validated == {'foo': 'goodbye', 'bar': 123}
+
+    def test_loading_values_into_existing_object_passes_extra_fields_to_validators_if_allow_extra_fields_is_type(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        validator = SpyValidator()
+        Object({'foo': String()}, allow_extra_fields=Integer(), validate=validator)\
+            .load_into(obj, {'bar': 456})
+        assert validator.validated == {'foo': 'hello', 'bar': 456}
+
+    def test_loading_values_into_existing_object_passes_extra_fields_to_validators_if_allow_extra_fields_is_field(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        validator = SpyValidator()
+        Object({'foo': String()}, allow_extra_fields=AttributeField(Integer()), validate=validator)\
+            .load_into(obj, {'bar': 456})
+        assert validator.validated == {'foo': 'hello', 'bar': 456}
 
     def test_loading_values_into_immutable_object_creates_a_copy(self):
         obj = AttributeDummy()
@@ -1824,6 +1892,110 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
         assert obj.foo == 'hello'
         assert obj.bar == 123
+
+    def test_loading_values_into_immutable_object_via_extra_fields_creates_a_copy(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        obj_type = Object({'foo': String()}, allow_extra_fields=Integer(),
+                          constructor=AttributeDummy, immutable=True)
+        result = obj_type.load_into(obj, {'bar': 456})
+        assert result is not obj
+        assert result.foo == 'hello'
+        assert result.bar == 456
+
+    # HELLO
+    def test_loading_values_into_immutable_object_via_extra_fields_does_not_modify_original_object(self):
+        obj = AttributeDummy()
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        obj_type = Object({'foo': String()}, allow_extra_fields=Integer(),
+                          constructor=AttributeDummy, immutable=True)
+        result = obj_type.load_into(obj, {'bar': 456})
+        assert obj.foo == 'hello'
+        assert obj.bar == 123
+
+    def test_loading_values_into_nested_object_of_immutable_object_via_extra_fields_creates_copy_of_it_regardless_of_nested_objects_immutable_flag(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+        }, constructor=Bar, allow_extra_fields=Integer())
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo, immutable=True)
+
+        foo = Foo(123, Bar('hello', 234))
+
+        result = FooType.load_into(foo, {'bar': {'bam': 456}})
+
+        assert result is not foo
+        assert result.bar is not foo.bar
+
+    def test_loading_values_into_nested_object_of_immutable_object_via_extra_fields_does_not_modify_original_objects(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+        }, constructor=Bar, allow_extra_fields=Integer())
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo, immutable=True)
+
+        foo = Foo(123, Bar('hello', 234))
+
+        result = FooType.load_into(foo, {'bar': {'bam': 456}})
+
+        assert foo.bar.bam == 234
+
+    def test_loading_values_into_nested_objects_via_extra_fields_with_inplace_False_does_not_modify_original_objects(self):
+        class Foo:
+            def __init__(self, foo, bar):
+                self.foo = foo
+                self.bar = bar
+
+        class Bar:
+            def __init__(self, baz, bam):
+                self.baz = baz
+                self.bam = bam
+
+        BarType = Object({
+            'baz': String(),
+        }, constructor=Bar, allow_extra_fields=Integer())
+
+        FooType = Object({
+            'foo': Integer(),
+            'bar': BarType,
+        }, constructor=Foo)
+
+        foo = Foo(123, Bar('hello', 234))
+
+        result = FooType.load_into(foo, {'bar': {'bam': 567}}, inplace=False)
+
+        assert foo.bar.bam == 234
+        assert result.bar.bam == 567
 
     def test_loading_None_into_existing_objects_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
