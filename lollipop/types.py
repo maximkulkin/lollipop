@@ -668,9 +668,20 @@ class Dict(Type):
                 continue
 
             try:
-                value = value_type.load(v, *args, **kwargs)
-                if value is not MISSING:
-                    result[k] = value
+                loaded = value_type.load(v, *args, **kwargs)
+                if loaded is not MISSING:
+                    result[k] = loaded
+            except ValidationError as ve:
+                errors_builder.add_error(k, ve.messages)
+
+        for k, value_type in iteritems(self.value_types):
+            if k in result:
+                continue
+
+            try:
+                loaded = value_type.load(MISSING, *args, **kwargs)
+                if loaded is not MISSING:
+                    result[k] = loaded
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
@@ -701,9 +712,20 @@ class Dict(Type):
                 continue
 
             try:
-                value = value_type.dump(v, *args, **kwargs)
-                if value is not MISSING:
-                    result[k] = value
+                dumped = value_type.dump(v, *args, **kwargs)
+                if dumped is not MISSING:
+                    result[k] = dumped
+            except ValidationError as ve:
+                errors_builder.add_error(k, ve.messages)
+
+        for k, value_type in iteritems(self.value_types):
+            if k in result:
+                continue
+
+            try:
+                dumped = value_type.dump(value.get(k, MISSING), *args, **kwargs)
+                if dumped is not MISSING:
+                    result[k] = dumped
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 

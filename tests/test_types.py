@@ -665,6 +665,26 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
         assert Dict(CustomValueType())\
             .load({'key1': 'foo', 'key2': 'bar'}) == {'key2': 'bar'}
 
+    def test_loading_fixed_dict_calls_load_with_missing_if_key_is_not_present(self):
+        class MyType(String):
+            def __init__(self):
+                self.loaded = object()
+
+            def load(self, data, *args, **kwargs):
+                self.loaded = data
+                return 'goodbye'
+
+        t = MyType()
+        result = Dict({'foo': String(), 'bar': t}).load({'foo': 'hello'})
+        assert result == {'foo': 'hello', 'bar': 'goodbye'}
+        assert t.loaded is MISSING
+
+        with pytest.raises(ValidationError) as exc_info:
+            Dict({'foo': String()}).load({})
+
+        assert exc_info.value.messages == \
+            {'foo': Type.default_error_messages['required']}
+
     def test_loading_accepts_any_key_if_key_type_is_not_specified(self):
         assert Dict(Any())\
             .load({'123': 'foo', 456: 'bar'}) == {'123': 'foo', 456: 'bar'}
@@ -764,6 +784,26 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
         assert Dict(CustomValueType())\
             .dump({'key1': 'foo', 'key2': 'bar'}) == {'key2': 'bar'}
+
+    def test_dumping_fixed_dict_calls_dump_with_missing_if_key_is_not_present(self):
+        class MyType(String):
+            def __init__(self):
+                self.dumped = object()
+
+            def dump(self, data, *args, **kwargs):
+                self.dumped = data
+                return 'goodbye'
+
+        t = MyType()
+        result = Dict({'foo': String(), 'bar': t}).dump({'foo': 'hello'})
+        assert result == {'foo': 'hello', 'bar': 'goodbye'}
+        assert t.dumped is MISSING
+
+        with pytest.raises(ValidationError) as exc_info:
+            Dict({'foo': String()}).dump({})
+
+        assert exc_info.value.messages == \
+            {'foo': Type.default_error_messages['required']}
 
     def test_dumping_accepts_any_value_if_value_types_are_not_specified(self):
         assert Dict()\
