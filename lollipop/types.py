@@ -895,6 +895,35 @@ class AttributeField(Field):
         setattr(obj, self.name_to_attribute(name), value)
 
 
+class IndexField(Field):
+    """Field that corresponds to object value at a particular index
+    (e.g. key of a dictionary).
+    Subclasses can use `name_to_key` field to convert field names to index keys.
+
+    :param Type field_type: Field type.
+    :param key: Can be either string or callable. If string, use given
+        key instead of field name defined in object type.
+        If callable, should take a single argument - name of field - and
+        return name of corresponding object key to obtain value from.
+    """
+    def __init__(self, field_type, key=None, *args, **kwargs):
+        super(IndexField, self).__init__(field_type, *args, **kwargs)
+        if key is None:
+            key = identity
+        elif not callable(key):
+            key = constant(key)
+        self.name_to_key = key
+
+    def get_value(self, name, obj, *args, **kwargs):
+        try:
+            return obj[self.name_to_key(name)]
+        except KeyError:
+            return MISSING
+
+    def set_value(self, name, obj, value, *args, **kwargs):
+        obj[self.name_to_key(name)] = value
+
+
 class MethodField(Field):
     """Field that is result of method invocation.
 

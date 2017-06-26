@@ -4,9 +4,9 @@ import datetime
 from lollipop.compat import OrderedDict
 from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Number, Integer, Float, Boolean, DateTime, Date, Time, OneOf, List, Tuple, \
-    Dict, Field, AttributeField, MethodField, FunctionField, Constant, Object, \
-    Optional, LoadOnly, DumpOnly, Transform, type_name_hint, dict_value_hint, \
-    validated_type
+    Dict, Field, AttributeField, IndexField, MethodField, FunctionField, \
+    Constant, Object, Optional, LoadOnly, DumpOnly, Transform, \
+    type_name_hint, dict_value_hint, validated_type
 from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
@@ -1062,6 +1062,77 @@ class TestAttributeField:
         field_type = SpyType()
         context = object()
         AttributeField(field_type).dump('foo', AttributeDummy(), context)
+        assert field_type.dump_context == context
+
+
+class TestIndexField:
+    def test_getting_value_returns_value_of_given_object_key(self):
+        obj = {'foo': 'hello', 'bar': 123}
+        assert IndexField(Any()).get_value('foo', obj) == obj['foo']
+
+    def test_getting_value_returns_value_of_configured_object_key(self):
+        obj = {'foo': 'hello', 'bar': 123}
+        assert IndexField(Any(), key='bar').get_value('foo', obj) == obj['bar']
+
+    def test_getting_value_returns_value_of_field_name_transformed_with_given_name_transformation(self):
+        obj = {'fooBar': 'hello'}
+        assert IndexField(Any(), key=to_camel_case)\
+            .get_value('foo_bar', obj) == obj['fooBar']
+
+    def test_setting_value_sets_given_value_to_given_object_key(self):
+        obj = {'foo': 'hello', 'bar': 123}
+        IndexField(Any()).set_value('foo', obj, 'goodbye')
+        assert obj['foo'] == 'goodbye'
+
+    def test_setting_value_sets_given_value_to_configured_object_key(self):
+        obj = {'foo': 'hello', 'bar': 123}
+        IndexField(Any(), key='bar').set_value('foo', obj, 'goodbye')
+        assert obj['foo'] == 'hello'
+        assert obj['bar'] == 'goodbye'
+
+    def test_setting_value_sets_given_value_to_field_name_transformed_with_given_name_transformation(self):
+        obj = {'fooBar': 'hello'}
+        IndexField(Any(), key=to_camel_case)\
+            .set_value('foo_bar', obj, 'goodbye')
+        assert obj['fooBar'] == 'goodbye'
+
+    def test_loading_value_with_field_type(self):
+        field_type = SpyType()
+        assert IndexField(field_type)\
+            .load('foo', {'foo': 'hello', 'bar': 123}) == 'hello'
+        assert field_type.loaded == 'hello'
+
+    def test_loading_given_key_regardless_of_key_override(self):
+        assert IndexField(String(), key='baz')\
+            .load('foo', {'foo': 'hello', 'bar': 123, 'baz': 'goodbye'}) == 'hello'
+
+    def test_loading_missing_value_if_key_does_not_exist(self):
+        assert IndexField(SpyType())\
+            .load('foo', {'bar': 123, 'baz': 'goodbye'}) == MISSING
+
+    def test_loading_passes_context_to_field_type_load(self):
+        field_type = SpyType()
+        context = object()
+        IndexField(field_type).load('foo', {'foo': 123}, context)
+        assert field_type.load_context == context
+
+    def test_dumping_given_key_from_object(self):
+        assert IndexField(SpyType())\
+            .dump('foo', {'foo': 'hello', 'bar': 123}) == 'hello'
+
+    def test_dumping_object_key_with_field_type(self):
+        field_type = SpyType()
+        assert IndexField(field_type).dump('foo', {'foo': 'hello', 'bar': 123})
+        assert field_type.dumped == 'hello'
+
+    def test_dumping_a_different_key_from_object(self):
+        assert IndexField(SpyType(), key='bar')\
+            .dump('foo', {'foo': 'hello', 'bar': 123}) == 123
+
+    def test_dumping_passes_context_to_field_type_dump(self):
+        field_type = SpyType()
+        context = object()
+        IndexField(field_type).dump('foo', {'foo': 'hello', 'bar': 123}, context)
         assert field_type.dump_context == context
 
 
