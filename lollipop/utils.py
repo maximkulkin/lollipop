@@ -74,6 +74,48 @@ def to_camel_case(s):
     return re.sub('_([a-z])', lambda m: m.group(1).upper(), s)
 
 
+class DictWithDefault(DictMixin, object):
+    def __init__(self, values={}, default=None):
+        super(DictWithDefault, self).__init__()
+        self.values = values
+        self.default = default
+
+    def __len__(self):
+        return len(self.values)
+
+    def __getitem__(self, key):
+        if key in self.values:
+            return self.values[key]
+        return self.default
+
+    def __setitem__(self, key, value):
+        self.values[key] = value
+
+    def __delitem__(self, key):
+        del self.values[key]
+
+    def __iter__(self):
+        for key in self.values:
+            yield key
+
+    def __len__(self):
+        return len(self.values)
+
+    def __contains__(self, key):
+        return key in self.values
+
+    def keys(self):
+        return self.values.keys()
+
+    def iterkeys(self):
+        for k in iterkeys(self.values):
+            yield k
+
+    def iteritems(self):
+        for k, v in self.values.iteritems():
+            yield k, v
+
+
 class OpenStruct(DictMixin):
     """A dictionary that also allows accessing values through object attributes."""
     def __init__(self, data=None):

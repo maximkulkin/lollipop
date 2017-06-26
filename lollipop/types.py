@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
 from lollipop.utils import is_sequence, is_mapping, make_context_aware, \
-    constant, identity, OpenStruct
+    constant, identity, OpenStruct, DictWithDefault
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -612,30 +612,6 @@ class OneOf(Type):
         )
 
 
-class DictWithDefault(object):
-    def __init__(self, values={}, default=None):
-        super(DictWithDefault, self).__init__()
-        self.values = values
-        self.default = default
-
-    def __len__(self):
-        return len(self.values)
-
-    def __getitem__(self, key):
-        if key in self.values:
-            return self.values[key]
-        return self.default
-
-    def __setitem__(self, key, value):
-        self.values[key] = value
-
-    def __delitem__(self, key):
-        del self.values[key]
-
-    def get(self, key, default=None):
-        return self[key]
-
-
 class Dict(Type):
     """A dict type. You can specify either a single type for all dict values
     or provide a dict-like mapping object that will return proper Type instance
@@ -692,9 +668,20 @@ class Dict(Type):
                 continue
 
             try:
-                value = value_type.load(v, *args, **kwargs)
-                if value is not MISSING:
-                    result[k] = value
+                loaded = value_type.load(v, *args, **kwargs)
+                if loaded is not MISSING:
+                    result[k] = loaded
+            except ValidationError as ve:
+                errors_builder.add_error(k, ve.messages)
+
+        for k, value_type in iteritems(self.value_types):
+            if k in result:
+                continue
+
+            try:
+                loaded = value_type.load(MISSING, *args, **kwargs)
+                if loaded is not MISSING:
+                    result[k] = loaded
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
@@ -725,9 +712,20 @@ class Dict(Type):
                 continue
 
             try:
-                value = value_type.dump(v, *args, **kwargs)
-                if value is not MISSING:
-                    result[k] = value
+                dumped = value_type.dump(v, *args, **kwargs)
+                if dumped is not MISSING:
+                    result[k] = dumped
+            except ValidationError as ve:
+                errors_builder.add_error(k, ve.messages)
+
+        for k, value_type in iteritems(self.value_types):
+            if k in result:
+                continue
+
+            try:
+                dumped = value_type.dump(value.get(k, MISSING), *args, **kwargs)
+                if dumped is not MISSING:
+                    result[k] = dumped
             except ValidationError as ve:
                 errors_builder.add_error(k, ve.messages)
 
