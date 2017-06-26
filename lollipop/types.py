@@ -1073,9 +1073,11 @@ class Object(Type):
         should take all fields values as keyword arguments.
     :param Field default_field_type: Default field type to use for fields defined
         by their type.
-    :param bool allow_extra_fields: If False, it will raise
-        :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
-        deserialization. If True, will ignore all extra fields.
+    :param (bool, :class:`Type` or :class:`Field`) allow_extra_fields: If False,
+        it will raise :exc:`~lollipop.errors.ValidationError` for all extra dict
+        keys during deserialization. If True, will ignore all extra fields.
+        If Type or Field, extra fields will be loaded and validated with given
+        type/field and stored in load result.
     :param only: Field name or list of field names to include in this object
         from it's base classes. All other base classes' fields won't be used.
         Does not affect own fields.
@@ -1121,6 +1123,9 @@ class Object(Type):
 
         self._default_field_type = default_field_type
         self._constructor = constructor
+        if isinstance(allow_extra_fields, Type):
+            allow_extra_fields = \
+                (self.default_field_type or AttributeField)(allow_extra_fields)
         self._allow_extra_fields = allow_extra_fields
         self._immutable = immutable
         self._ordered = ordered
@@ -1200,6 +1205,18 @@ class Object(Type):
             for name in data:
                 if name not in field_names:
                     errors_builder.add_error(name, self._error_messages['unknown'])
+        elif isinstance(self.allow_extra_fields, Field):
+            field_names = [name for name, _ in iteritems(self.fields)]
+            for name in data:
+                if name not in field_names:
+                    try:
+                        loaded = self.allow_extra_fields.load(
+                            name, data, *args, **kwargs
+                        )
+                        if loaded != MISSING:
+                            result[name] = loaded
+                    except ValidationError as ve:
+                        errors_builder.add_error(name, ve.messages)
 
         errors_builder.raise_errors()
 
@@ -1241,7 +1258,8 @@ class Object(Type):
                 if name in data:
                     # Load new data
                     value = field.load_into(obj, name, data,
-                                            inplace=not self.immutable and inplace)
+                                            inplace=not self.immutable and inplace,
+                                            *args, **kwargs)
                 else:
                     # Retrive data from existing object
                     value = field.get_value(name, obj, *args, **kwargs)
@@ -1256,6 +1274,20 @@ class Object(Type):
             for name in data:
                 if name not in field_names:
                     errors_builder.add_error(name, self._error_messages['unknown'])
+        elif isinstance(self.allow_extra_fields, Field):
+            field_names = [name for name, _ in iteritems(self.fields)]
+            for name in data:
+                if name not in field_names:
+                    try:
+                        loaded = self.allow_extra_fields.load_into(
+                            obj, name, data,
+                            inplace=not self.immutable and inplace,
+                            *args, **kwargs
+                        )
+                        if loaded != MISSING:
+                            data1[name] = loaded
+                    except ValidationError as ve:
+                        errors_builder.add_error(name, ve.messages)
 
         errors_builder.raise_errors()
 
@@ -1266,14 +1298,12 @@ class Object(Type):
             if self.constructor:
                 result = self.constructor(**result)
         else:
-            for name, field in iteritems(self.fields):
-                if name not in data:
+            for name, value in iteritems(data2):
+                field = self.fields.get(name, self.allow_extra_fields)
+                if not isinstance(field, Field):
                     continue
 
-                try:
-                    field.set_value(name, obj, data2.get(name, MISSING))
-                except ValidationError as ve:
-                    raise ValidationError({name: ve.messages})
+                field.set_value(name, obj, value, *args, **kwargs)
 
             result = obj
 
@@ -1319,7 +1349,7 @@ class Object(Type):
         return '<{klass}{fields}>'.format(
             klass=self.__class__.__name__,
             fields=''.join([' %s=%s' % (name, field_type.field_type)
-                            for name, field_type in self.fields.iteritems()]),
+                            for name, field_type in iteritems(self.fields)]),
         )
 
 
