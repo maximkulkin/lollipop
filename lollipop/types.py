@@ -1,7 +1,7 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
     ErrorMessagesMixin, merge_errors
 from lollipop.utils import is_sequence, is_mapping, make_context_aware, \
-    constant, identity, OpenStruct
+    constant, identity, OpenStruct, DictWithDefault
 from lollipop.compat import string_types, int_types, iteritems, OrderedDict
 import datetime
 
@@ -610,30 +610,6 @@ class OneOf(Type):
             klass=self.__class__.__name__,
             types=repr(self.types),
         )
-
-
-class DictWithDefault(object):
-    def __init__(self, values={}, default=None):
-        super(DictWithDefault, self).__init__()
-        self.values = values
-        self.default = default
-
-    def __len__(self):
-        return len(self.values)
-
-    def __getitem__(self, key):
-        if key in self.values:
-            return self.values[key]
-        return self.default
-
-    def __setitem__(self, key, value):
-        self.values[key] = value
-
-    def __delitem__(self, key):
-        del self.values[key]
-
-    def get(self, key, default=None):
-        return self[key]
 
 
 class Dict(Type):
