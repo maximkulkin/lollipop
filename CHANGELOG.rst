@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+1.1.5 (2017-06-26)
+++++++++++++++++++
+
+* Add support for loading extra attributes for Objects
+* Update Dict to require presence of fixed keys
+* Add IndexField to extract data from dict-like objects
+
 1.1.4 (2017-06-08)
 ++++++++++++++++++
 
