@@ -376,8 +376,7 @@ class List(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        # TODO: Make more intelligent check for collections
-        if not is_sequence(data):
+        if not is_sequence(data) or isinstance(data, string_types):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
@@ -395,7 +394,7 @@ class List(Type):
         if value is MISSING or value is None:
             self._fail('required')
 
-        if not is_sequence(value):
+        if not is_sequence(value) or isinstance(value, string_types):
             self._fail('invalid')
 
         errors_builder = ValidationErrorBuilder()
