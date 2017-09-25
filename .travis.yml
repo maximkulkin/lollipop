@@ -17,6 +17,7 @@ before_install:
 
 install:
   - pip install -U .[reco]
+  - pip install setuptools==36.5.0
   - pip install -U -r dev-requirements.txt
 
 script: python setup.py test
