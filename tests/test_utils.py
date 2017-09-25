@@ -1,6 +1,6 @@
 from lollipop.compat import iterkeys, itervalues, iteritems
 from lollipop.utils import call_with_context, to_camel_case, to_snake_case, \
-    constant, identity, OpenStruct
+    constant, identity, OpenStruct, DictWithDefault
 import pytest
 
 
@@ -285,3 +285,61 @@ class TestOpenStruct:
 
         with pytest.raises(AttributeError):
             del o.foo
+
+
+class TestDictWithDefault:
+    def test_getitem(self):
+        d = DictWithDefault({'foo': 'hello', 'bar': '123'})
+        assert d['foo'] == 'hello'
+        assert d['bar'] == '123'
+
+    def test_getitem_default(self):
+        d = DictWithDefault({'foo': 'hello'}, default=123)
+        assert d['bar'] == 123
+
+    def test_setitem(self):
+        d = DictWithDefault({'foo': 'hello'})
+        assert 'bar' not in d
+        d['bar'] = '123'
+        assert 'bar' in d
+        assert d['bar'] == '123'
+
+    def test_delitem(self):
+        d = DictWithDefault({'foo': 'hello', 'bar': 123})
+        assert 'bar' in d
+        del d['bar']
+        assert 'bar' not in d
+
+    def test_len(self):
+        assert len(DictWithDefault({'a': 1, 'b': 5})) == 2
+        assert len(DictWithDefault(default=3)) == 0
+        assert len(DictWithDefault({'a': 1, 'b': 5}, default=3)) == 2
+
+    def test_iter(self):
+        assert sorted(list(DictWithDefault({'a': 1, 'b': 2}))) == ['a', 'b']
+
+    def test_contains(self):
+        d = DictWithDefault({'a': 1, 'b': 2})
+        assert 'a' in d
+        assert 'b' in d
+        assert 'c' not in d
+
+    def test_contains_with_default(self):
+        d = DictWithDefault({'a': 1, 'b': 2}, default=123)
+        assert 'a' in d
+        assert 'b' in d
+        assert 'c' not in d
+
+    def test_keys(self):
+        assert sorted(DictWithDefault({'a': 1, 'b': 2}).keys()) == ['a', 'b']
+
+    def test_values(self):
+        assert sorted(DictWithDefault({'a': 1, 'b': 2}).values()) == [1, 2]
+
+    def test_get(self):
+        assert DictWithDefault().get('foo') == None
+        assert DictWithDefault(default=123).get('foo') == 123
+
+    def test_get_with_custom_default(self):
+        assert DictWithDefault().get('foo', 'hello') == 'hello'
+        assert DictWithDefault(default=123).get('foo', 'hello') == 'hello'

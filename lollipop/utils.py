@@ -74,45 +74,54 @@ def to_camel_case(s):
     return re.sub('_([a-z])', lambda m: m.group(1).upper(), s)
 
 
+_default = object()
+
+
 class DictWithDefault(DictMixin, object):
     def __init__(self, values={}, default=None):
         super(DictWithDefault, self).__init__()
-        self.values = values
+        self._values = values
         self.default = default
 
     def __len__(self):
-        return len(self.values)
+        return len(self._values)
+
+    def get(self, key, default=_default):
+        if key in self._values:
+            return self._values[key]
+
+        if default is _default:
+            default = self.default
+
+        return default
 
     def __getitem__(self, key):
-        if key in self.values:
-            return self.values[key]
+        if key in self._values:
+            return self._values[key]
         return self.default
 
     def __setitem__(self, key, value):
-        self.values[key] = value
+        self._values[key] = value
 
     def __delitem__(self, key):
-        del self.values[key]
+        del self._values[key]
 
     def __iter__(self):
-        for key in self.values:
+        for key in self._values:
             yield key
 
-    def __len__(self):
-        return len(self.values)
-
     def __contains__(self, key):
-        return key in self.values
+        return key in self._values
 
     def keys(self):
-        return self.values.keys()
+        return self._values.keys()
 
     def iterkeys(self):
-        for k in iterkeys(self.values):
+        for k in iterkeys(self._values):
             yield k
 
     def iteritems(self):
-        for k, v in self.values.iteritems():
+        for k, v in self._values.iteritems():
             yield k, v
 
 
