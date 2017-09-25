@@ -512,6 +512,11 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
             List(String()).load(123)
         assert exc_info.value.messages == List.default_error_messages['invalid']
 
+    def test_loading_string_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            List(String()).load('foo')
+        assert exc_info.value.messages == List.default_error_messages['invalid']
+
     def test_loading_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).load([1, '2', 3])
@@ -544,11 +549,15 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_dumping_sequence_value(self):
         assert List(String()).dump(('foo', 'bar', 'baz')) == ['foo', 'bar', 'baz']
-        assert List(String()).dump('foobar') == ['f', 'o', 'o', 'b', 'a', 'r']
 
     def test_dumping_non_list_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             List(String()).dump(123)
+        assert exc_info.value.messages == List.default_error_messages['invalid']
+
+    def test_dumping_string_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            List(String()).dump('foo')
         assert exc_info.value.messages == List.default_error_messages['invalid']
 
     def test_dumping_list_value_with_items_of_incorrect_type_raises_ValidationError(self):
