@@ -662,7 +662,7 @@ class OneOf(Type):
         BarType = Object({'bar': Integer()}, constructor=Bar)
 
         def object_with_type(name, subject_type):
-            return Object(subject_type, {'type': name},
+            return Object(subject_type, {'type': DumpOnly(Constant(name))},
                           constructor=subject_type.constructor)
 
         FooBarType = OneOf({
@@ -951,7 +951,7 @@ class Constant(Type):
         if value != self.value:
             self._fail('value', expected_value=self.value, actual_value=value)
 
-        return MISSING
+        return value
 
     def dump(self, value, *args, **kwargs):
         return self.field_type.dump(self.value, *args, **kwargs)
