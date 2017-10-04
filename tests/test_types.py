@@ -905,8 +905,10 @@ class TestOneOf:
         BarType = Object({'bar': Integer(), 'baz': Boolean()}, constructor=Bar)
 
         one_of = OneOf({
-            'Foo': Object(FooType, {'type': 'foo'}, constructor=FooType.constructor),
-            'Bar': Object(BarType, {'type': 'bar'}, constructor=BarType.constructor),
+            'Foo': Object(FooType, {'type': DumpOnly(Constant('foo'))},
+                          constructor=FooType.constructor),
+            'Bar': Object(BarType, {'type': DumpOnly(Constant('bar'))},
+                          constructor=BarType.constructor),
         }, load_hint=dict_value_hint('type', str.capitalize))
 
         assert one_of.load({'type': 'foo', 'foo': 'hello'}) == \
@@ -1517,8 +1519,8 @@ class TestFunctionField:
 class TestConstant(NameDescriptionTestsMixin):
     tested_type = partial(Constant, 42)
 
-    def test_loading_always_returns_missing(self):
-        assert Constant(42).load(42) == MISSING
+    def test_loading_always_returns_value(self):
+        assert Constant(42).load(42) == 42
 
     def test_loading_raises_ValidationError_if_loaded_value_is_not_a_constant_value_specified(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -1527,7 +1529,7 @@ class TestConstant(NameDescriptionTestsMixin):
 
     def test_loading_value_with_inner_type_before_checking_value_correctness(self):
         inner_type = SpyType(load_result=42)
-        assert Constant(42, inner_type).load(44) == MISSING
+        assert Constant(42, inner_type).load(44) == 42
         assert inner_type.loaded == 44
 
     def test_customizing_error_message_when_value_is_incorrect(self):
