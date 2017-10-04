@@ -165,6 +165,9 @@ class Number(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
+        if isinstance(data, string_types):
+            self._fail('invalid')
+
         return super(Number, self).load(self._normalize(data), *args, **kwargs)
 
     def dump(self, value, *args, **kwargs):

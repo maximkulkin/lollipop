@@ -208,8 +208,16 @@ class TestNumber(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
     valid_data = 1.23
     valid_value = 1.23
 
+    def test_loading_integer(self):
+        assert Number().load(123) == 123
+
     def test_loading_float_value(self):
         assert Number().load(1.23) == 1.23
+
+    def test_loading_numeric_as_string(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Number().load("123")
+        assert exc_info.value.messages == Number.default_error_messages['invalid']
 
     def test_loading_non_numeric_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -226,6 +234,9 @@ class TestNumber(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
 
 class TestInteger:
+    def test_loading_float_to_integer(self):
+        assert Integer().load(12.3) == 12
+
     def test_loading_integer_value(self):
         assert Integer().load(123) == 123
 
@@ -252,6 +263,9 @@ class TestInteger:
 
 
 class TestFloat:
+    def test_loading_integer_to_float(self):
+        assert Float().load(123) == 123.0
+
     def test_loading_float_value(self):
         assert Float().load(1.23) == 1.23
 
@@ -648,11 +662,11 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_loading_dict_with_custom_key_type(self):
         assert Dict(Any(), key_type=Integer())\
-            .load({'123': 'foo', '456': 'bar'}) == {123: 'foo', 456: 'bar'}
+            .load({123: 'foo', 456: 'bar'}) == {123: 'foo', 456: 'bar'}
 
     def test_loading_dict_with_custom_key_type_and_values_of_different_types(self):
         assert Dict({1: Integer(), 2: String()}, key_type=Integer())\
-            .load({'1': '123', '2': 'bar'}) == {1: 123, 2: 'bar'}
+            .load({1: 123, 2: 'bar'}) == {1: 123, 2: 'bar'}
 
     def test_loading_skips_key_value_if_custom_key_type_loads_to_missing(self):
         class CustomKeyType(String):
@@ -718,7 +732,7 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_loading_dict_with_incorrect_key_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
-            Dict(Any(), key_type=Integer()).load({'123': 'foo', 'bar': 'baz'})
+            Dict(Any(), key_type=Integer()).load({123: 'foo', 'bar': 'baz'})
         assert exc_info.value.messages == \
             {'bar': Integer.default_error_messages['invalid']}
 
