@@ -76,10 +76,21 @@ class ValidatorCollection(object):
 class Type(ErrorMessagesMixin, object):
     """Base class for defining data types.
 
+    :param string name: Name of type or None for unnamed types
+    :param string description: Description of type or None
     :param list validate: A validator or list of validators for this data type.
         Validator is a callable that takes serialized data and raises
         :exc:`~lollipop.errors.ValidationError` if data is invalid.
         Validator return value is ignored.
+    :param dict error_messages: Mapping of error message keys to error message text.
+        Error messages can contain placeholders in standard string.format() format
+        (e.g. "Invalid value: {value}"). Consult particular type's documentation on
+        available data.
+
+    Error message keys:
+        * invalid - value is invalid. Interpolation data:
+                * data - actual value
+        * required - value is required
     """
 
     default_error_messages = {
@@ -150,6 +161,12 @@ class Any(Type):
 
 
 class Number(Type):
+    """Any number type (integer/float).
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+    """
     num_type = float
     default_error_messages = {
         'invalid': 'Value should be number',
@@ -159,7 +176,7 @@ class Number(Type):
         try:
             return self.num_type(value)
         except (TypeError, ValueError):
-            self._fail('invalid')
+            self._fail('invalid', data=value)
 
     def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -178,7 +195,12 @@ class Number(Type):
 
 
 class Integer(Number):
-    """An integer type."""
+    """An integer type.
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+    """
 
     num_type = int
     default_error_messages = {
@@ -187,7 +209,12 @@ class Integer(Number):
 
 
 class Float(Number):
-    """A float type."""
+    """A float type.
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+    """
 
     num_type = float
     default_error_messages = {
@@ -196,7 +223,12 @@ class Float(Number):
 
 
 class String(Type):
-    """A string type."""
+    """A string type.
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+    """
 
     default_error_messages = {
         'invalid': 'Value should be string',
@@ -220,7 +252,12 @@ class String(Type):
 
 
 class Boolean(Type):
-    """A boolean type."""
+    """A boolean type.
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+    """
 
     default_error_messages = {
         'invalid': 'Value should be boolean',
@@ -231,7 +268,7 @@ class Boolean(Type):
             self._fail('required')
 
         if not isinstance(data, bool):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         return super(Boolean, self).load(data, *args, **kwargs)
 
@@ -240,7 +277,7 @@ class Boolean(Type):
             self._fail('required')
 
         if not isinstance(value, bool):
-            self._fail('invalid')
+            self._fail('invalid', data=value)
 
         return super(Boolean, self).dump(bool(value), *args, **kwargs)
 
@@ -252,12 +289,32 @@ class DateTime(Type):
         one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.
         See :const:`~DateTime.FORMATS`)
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Instead of specifying format strings explicitly, you can instead use one of
+    predefined strings for formats. E.g. `DateTime(format='rfc3339')`.
+
+    Predefined formats:
+        * iso - shortcut for iso8601 (default)
+        * iso8601 - %Y-%m-%dT%H:%M:%S%Z (e.g. "2015-12-31T14:59:59PDT")
+        * rfc - shortcut for rfc3339
+        * rfc3339 - %Y-%m-%dT%H:%M:%S%Z (e.g. "2015-12-31T14:59:59UTC")
+        * rfc822 - %d %b %y %H:%M:%S %Z (e.g. "31 Dec 2015 14:59:59 PDT")
+
+    Error message keys:
+        * invalid - invalid datetime value (on dump). Interpolation data:
+                * data - actual value
+        * invalid_type - value is not a string (on load). Interpolation data:
+                * data - actual value
+        * invalid_format - string does not match datetime format (on load).
+            Interpolation data:
+                * data - actual value
+                * format - format string
     """
 
     FORMATS = {
         'iso': '%Y-%m-%dT%H:%M:%S%Z',  # shortcut for iso8601
         'iso8601': '%Y-%m-%dT%H:%M:%S%Z',
-        'rfc': '%Y-%m-%d',             # shortcut for rfc3339
+        'rfc': '%Y-%m-%dT%H:%M:%S%Z',  # shortcut for rfc3339
         'rfc3339': '%Y-%m-%dT%H:%M:%S%Z',
         'rfc822': '%d %b %y %H:%M:%S %Z',
     }
@@ -310,6 +367,23 @@ class Date(DateTime):
         one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.
         See :const:`~Date.FORMATS`)
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Predefined formats:
+        * iso - shortcut for iso8601 (default)
+        * iso8601 - %Y-%m-%d (e.g. "2015-12-31")
+        * rfc - shortcut for rfc3339
+        * rfc3339 - %Y-%m-%d (e.g. "2015-12-31")
+        * rfc822 - %d %b %y (e.g. "31 Dec 2015")
+
+    Error message keys:
+        * invalid - invalid date value (on dump). Interpolation data:
+                * data - actual value
+        * invalid_type - value is not a string (on load). Interpolation data:
+                * data - actual value
+        * invalid_format - string does not match date format (on load).
+            Interpolation data:
+                * data - actual value
+                * format - format string
     """
 
     FORMATS = {
@@ -333,11 +407,25 @@ class Date(DateTime):
 
 
 class Time(DateTime):
-    """A date type which serializes into string.
+    """A time type which serializes into string.
 
     :param str format: Format string (see :func:`datetime.datetime.strptime`) or
         one of predefined format names (e.g. 'iso8601', 'rfc3339', etc.)
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Predefined formats:
+        * iso - shortcut for iso8601 (default)
+        * iso8601 - %H:%M:%S (e.g. "14:59:59")
+
+    Error message keys:
+        * invalid - invalid time value (on dump). Interpolation data:
+                * data - actual value
+        * invalid_type - value is not a string (on load). Interpolation data:
+                * data - actual value
+        * invalid_format - string does not match date format (on load).
+            Interpolation data:
+                * data - actual value
+                * format - format string
     """
 
     FORMATS = {
@@ -366,6 +454,10 @@ class List(Type):
 
     :param Type item_type: Type of list elements.
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Error message keys:
+        * invalid - invalid list value. Interpolation data:
+                * data - actual value
     """
     default_error_messages = {
         'invalid': 'Value should be list',
@@ -380,7 +472,7 @@ class List(Type):
             self._fail('required')
 
         if not is_sequence(data) or isinstance(data, string_types):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         errors_builder = ValidationErrorBuilder()
         items = []
@@ -398,7 +490,7 @@ class List(Type):
             self._fail('required')
 
         if not is_sequence(value) or isinstance(value, string_types):
-            self._fail('invalid')
+            self._fail('invalid', invalid=value)
 
         errors_builder = ValidationErrorBuilder()
         items = []
@@ -428,6 +520,13 @@ class Tuple(Type):
 
     :param list item_types: List of item types.
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Error message keys:
+        * invalid - invalid list value. Interpolation data:
+                * data - actual value
+        * invalid_length: tuple has invalid length: Interpolation data:
+                * expected_length
+                * actual_length
     """
     default_error_messages = {
         'invalid': 'Value should be list',
@@ -443,7 +542,7 @@ class Tuple(Type):
             self._fail('required')
 
         if not is_sequence(data):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         if len(data) != len(self.item_types):
             self._fail('invalid_length',
@@ -466,10 +565,12 @@ class Tuple(Type):
             self._fail('required')
 
         if not is_sequence(value):
-            self._fail('invalid')
+            self._fail('invalid', data=value)
 
         if len(value) != len(self.item_types):
-            self._fail('invalid_length', expected_length=len(self.item_types))
+            self._fail('invalid_length',
+                       expected_length=len(self.item_types),
+                       actual_length=len(value))
 
         errors_builder = ValidationErrorBuilder()
         result = []
@@ -514,17 +615,48 @@ def dict_value_hint(key, mapper=None):
 
 
 class OneOf(Type):
-    """
+    """Type that alternates between several other types.
 
-    Example: ::
+    There are two ways to use it:
+        * with sequence of types
+        * with mapping of types
 
-        class Foo(object):
-            def __init__(self, foo):
-                self.foo = foo
+    When used with sequence of types, it tries to load/dump data with each
+    type in a sequence until operation succeeds, proceeding to next type if
+    operation fails.
 
-        class Bar(object):
-            def __init__(self, bar):
-                self.bar = bar
+    Types sequence example: ::
+
+        ValueType = OneOf([String(), List(String())])
+
+        ValutType.dump('foo')           # => 'foo'
+        ValueType.dump(['foo', 'bar'])  # => ['foo', 'bar']
+
+    When used with a mapping of types, it requires two hint functions to be
+    provided: one to determine type name for dumped object and other one to
+    determine type name for loaded data. E.g. dump hint can be based on object
+    class. Load hint can be done either by inspecting data structure or using
+    injected data: you can modify schema of your objects (assuming your data
+    is objects) and add extra field called e.g. "type" and put some constant
+    there. Then you can consult that field value to know what type to use for
+    loading.
+
+    Hint function example: ::
+
+        def dump_hint(data):
+            return data.__class__.__name__
+
+        def load_hint(key):
+            def hinter(data):
+                return data.get(key)
+            return hinter
+
+    Type mapping example: ::
+
+        from collections import namedtuple
+
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar'])
 
         FooType = Object({'foo': String()}, constructor=Foo)
         BarType = Object({'bar': Integer()}, constructor=Bar)
@@ -544,6 +676,47 @@ class OneOf(Type):
         List(FooBarType).load([{'type': 'Foo', 'foo': 'hello'},
                                {'type': 'Bar', 'bar': 123}])
         # => [Foo(foo='hello'), Bar(bar=123)]
+
+    Using hint functions can be handier because when trying different types in
+    sequence it is impossible to distinguish between cases when data is obviously
+    of different types vs data of that particular type but invalid.
+
+    Example: ::
+
+        NameType = String(validate=Length(max=32))
+        ValueType = OneOf([NameType, List(NameType)])
+
+        # Most likely if you specify long string, you will get error that
+        # data is of invalid type.
+
+        # Here is an alternative:
+
+        def value_type_hint(data):
+            if isinstance(data, (str, unicode)):
+                return 'string'
+            elif isinstance(data, collections.Sequence):
+                return 'list-of-names'
+            else:
+                return None
+
+        ValueType = OneOf(
+            {
+                'name': NameType,
+                'list-of-names': List(NameType),
+            },
+            load_hint=value_type_hint,
+            dump_hint=value_type_hint,
+        )
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+        * unknown_type_id - unknown type ID. Interpolation data:
+                * data - actual value
+                * type_id - hinted type ID
+        * no_type_matched - in case of sequence of types error when no types matched.
+            Interpolation data:
+                * value
     """
 
     default_error_messages = {
@@ -568,7 +741,7 @@ class OneOf(Type):
         if is_mapping(self.types) and self.load_hint:
             type_id = self.load_hint(data)
             if type_id not in self.types:
-                self._fail('unknown_type_id', type_id=type_id)
+                self._fail('unknown_type_id', data=data, type_id=type_id)
 
             item_type = self.types[type_id]
             result = item_type.load(data, *args, **kwargs)
@@ -582,7 +755,7 @@ class OneOf(Type):
                 except ValidationError as ve:
                     pass
 
-            self._fail('no_type_matched')
+            self._fail('no_type_matched', data=data)
 
     def dump(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -591,7 +764,7 @@ class OneOf(Type):
         if is_mapping(self.types) and self.dump_hint:
             type_id = self.dump_hint(data)
             if type_id not in self.types:
-                self._fail('unknown_type_id', type_id=type_id)
+                self._fail('unknown_type_id', data=data, type_id=type_id)
 
             item_type = self.types[type_id]
             result = item_type.dump(data, *args, **kwargs)
@@ -605,7 +778,7 @@ class OneOf(Type):
                 except ValidationError as ve:
                     pass
 
-            self._fail('no_type_matched')
+            self._fail('no_type_matched', data=data)
 
     def __repr__(self):
         return '<{klass} {types}>'.format(
@@ -632,6 +805,10 @@ class Dict(Type):
     :param Type key_type: Type for dictionary keys (defaults to :class:`Any`).
         Can be used to either transform or validate dictionary keys.
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Error message keys:
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
     """
 
     default_error_messages = {
@@ -652,7 +829,7 @@ class Dict(Type):
             self._fail('required')
 
         if not is_mapping(data):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         errors_builder = ValidationErrorBuilder()
         result = {}
@@ -696,7 +873,7 @@ class Dict(Type):
             self._fail('required')
 
         if not is_mapping(value):
-            self._fail('invalid')
+            self._fail('invalid', data=value)
 
         errors_builder = ValidationErrorBuilder()
         result = {}
@@ -748,6 +925,12 @@ class Constant(Type):
 
     :param value: Value constant for this field.
     :param Type field_type: Field type.
+
+    Error message keys:
+        * required
+        * value - incorrect value. Interpolation keys:
+                * expected_value - expected value
+                * actual_value - actual value
     """
 
     default_error_messages = {
@@ -766,7 +949,7 @@ class Constant(Type):
             self._fail('required')
 
         if value != self.value:
-            self._fail('value')
+            self._fail('value', expected_value=self.value, actual_value=value)
 
         return MISSING
 
@@ -1119,6 +1302,12 @@ class Object(Type):
     :param bool immutable: If False, object is allowed to be modified in-place;
         if True - always create a copy with `constructor`.
     :param kwargs: Same keyword arguments as for :class:`Type`.
+
+    Error message keys:
+        * required - value is required
+        * invalid - invalid value type. Interpolation data:
+                * data - actual value
+        * unknown - reported for unknown fields
     """
 
     default_error_messages = {
@@ -1216,7 +1405,7 @@ class Object(Type):
             self._fail('required')
 
         if not is_mapping(data):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         errors_builder = ValidationErrorBuilder()
         result = {}
@@ -1277,7 +1466,7 @@ class Object(Type):
             self._fail('required')
 
         if not is_mapping(data):
-            self._fail('invalid')
+            self._fail('invalid', data=data)
 
         errors_builder = ValidationErrorBuilder()
 
