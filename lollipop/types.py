@@ -615,17 +615,48 @@ def dict_value_hint(key, mapper=None):
 
 
 class OneOf(Type):
-    """
+    """Type that alternates between several other types.
 
-    Example: ::
+    There are two ways to use it:
+        * with sequence of types
+        * with mapping of types
 
-        class Foo(object):
-            def __init__(self, foo):
-                self.foo = foo
+    When used with sequence of types, it tries to load/dump data with each
+    type in a sequence until operation succeeds, proceeding to next type if
+    operation fails.
 
-        class Bar(object):
-            def __init__(self, bar):
-                self.bar = bar
+    Types sequence example: ::
+
+        ValueType = OneOf([String(), List(String())])
+
+        ValutType.dump('foo')           # => 'foo'
+        ValueType.dump(['foo', 'bar'])  # => ['foo', 'bar']
+
+    When used with a mapping of types, it requires two hint functions to be
+    provided: one to determine type name for dumped object and other one to
+    determine type name for loaded data. E.g. dump hint can be based on object
+    class. Load hint can be done either by inspecting data structure or using
+    injected data: you can modify schema of your objects (assuming your data
+    is objects) and add extra field called e.g. "type" and put some constant
+    there. Then you can consult that field value to know what type to use for
+    loading.
+
+    Hint function example: ::
+
+        def dump_hint(data):
+            return data.__class__.__name__
+
+        def load_hint(key):
+            def hinter(data):
+                return data.get(key)
+            return hinter
+
+    Type mapping example: ::
+
+        from collections import namedtuple
+
+        Foo = namedtuple('Foo', ['foo'])
+        Bar = namedtuple('Bar', ['bar'])
 
         FooType = Object({'foo': String()}, constructor=Foo)
         BarType = Object({'bar': Integer()}, constructor=Bar)
@@ -645,6 +676,37 @@ class OneOf(Type):
         List(FooBarType).load([{'type': 'Foo', 'foo': 'hello'},
                                {'type': 'Bar', 'bar': 123}])
         # => [Foo(foo='hello'), Bar(bar=123)]
+
+    Using hint functions can be handier because when trying different types in
+    sequence it is impossible to distinguish between cases when data is obviously
+    of different types vs data of that particular type but invalid.
+
+    Example: ::
+
+        NameType = String(validate=Length(max=32))
+        ValueType = OneOf([NameType, List(NameType)])
+
+        # Most likely if you specify long string, you will get error that
+        # data is of invalid type.
+
+        # Here is an alternative:
+
+        def value_type_hint(data):
+            if isinstance(data, (str, unicode)):
+                return 'string'
+            elif isinstance(data, collections.Sequence):
+                return 'list-of-names'
+            else:
+                return None
+
+        ValueType = OneOf(
+            {
+                'name': NameType,
+                'list-of-names': List(NameType),
+            },
+            load_hint=value_type_hint,
+            dump_hint=value_type_hint,
+        )
 
     Error message keys:
         * invalid - invalid value type. Interpolation data:
