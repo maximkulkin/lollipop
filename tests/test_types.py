@@ -1887,6 +1887,20 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
             .load_into(obj, {'foo': 'goodbye'})
         assert validator.validated == {'foo': 'goodbye', 'bar': 123}
 
+    def test_loading_values_into_existing_object_doesnt_pass_dump_only_fields(self):
+        obj = AttributeDummy()
+        obj.id = 'my-obj'
+        obj.foo = 'hello'
+        obj.bar = 123
+
+        validator = SpyValidator()
+        Object({
+            'id': DumpOnly(String()),
+            'foo': String(),
+            'bar': Integer(),
+        }, validate=validator).load_into(obj, {'foo': 'goodbye'})
+        assert validator.validated == {'foo': 'goodbye', 'bar': 123}
+
     def test_loading_values_into_existing_object_passes_extra_fields_to_validators_if_allow_extra_fields_is_type(self):
         obj = AttributeDummy()
         obj.foo = 'hello'

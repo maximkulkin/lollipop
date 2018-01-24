@@ -1481,7 +1481,9 @@ class Object(Type):
                                             *args, **kwargs)
                 else:
                     # Retrive data from existing object
-                    value = field.get_value(name, obj, *args, **kwargs)
+                    value = field.load(name, {
+                        name: field.dump(name, obj, *args, **kwargs)
+                    })
 
                 if value is not MISSING:
                     data1[name] = value
