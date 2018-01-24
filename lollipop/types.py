@@ -25,6 +25,7 @@ __all__ = [
     'dict_value_hint',
     'Field',
     'AttributeField',
+    'IndexField',
     'MethodField',
     'FunctionField',
     'Object',
