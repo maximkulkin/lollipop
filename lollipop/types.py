@@ -25,6 +25,7 @@ __all__ = [
     'dict_value_hint',
     'Field',
     'AttributeField',
+    'IndexField',
     'MethodField',
     'FunctionField',
     'Object',
@@ -994,7 +995,7 @@ class Field(ErrorMessagesMixin):
         """
         raise NotImplemented()
 
-    def load(self, name, data, *args, **kwargs):
+    def load(self, name, data, context=None):
         """Deserialize data from primitive types. Raises
         :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
@@ -1004,9 +1005,9 @@ class Field(ErrorMessagesMixin):
         :returns: Loaded data.
         :raises: :exc:`~lollipop.errors.ValidationError`
         """
-        return self.field_type.load(data.get(name, MISSING), *args, **kwargs)
+        return self.field_type.load(data.get(name, MISSING), context=context)
 
-    def load_into(self, obj, name, data, inplace=True, *args, **kwargs):
+    def load_into(self, obj, name, data, inplace=True, context=None):
         """Deserialize data from primitive types updating existing object.
         Raises :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
@@ -1027,15 +1028,15 @@ class Field(ErrorMessagesMixin):
         if value is MISSING:
             return
 
-        target = self.get_value(name, obj, *args, **kwargs)
+        target = self.get_value(name, obj, context=context)
         if target is not None and target is not MISSING \
                 and hasattr(self.field_type, 'load_into'):
             return self.field_type.load_into(target, value, inplace=inplace,
-                                             *args, **kwargs)
+                                             context=context)
         else:
-            return self.field_type.load(value, *args, **kwargs)
+            return self.field_type.load(value, context=context)
 
-    def dump(self, name, obj, *args, **kwargs):
+    def dump(self, name, obj, context=None):
         """Serialize data to primitive types. Raises
         :exc:`~lollipop.errors.ValidationError` if data is invalid.
 
@@ -1044,8 +1045,8 @@ class Field(ErrorMessagesMixin):
         :returns: Serialized data.
         :raises: :exc:`~lollipop.errors.ValidationError`
         """
-        value = self.get_value(name, obj)
-        return self.field_type.dump(value, *args, **kwargs)
+        value = self.get_value(name, obj, context=context)
+        return self.field_type.dump(value, context=context)
 
     def __repr__(self):
         return '<{klass} {field_type}>'.format(
@@ -1073,10 +1074,10 @@ class AttributeField(Field):
             attribute = constant(attribute)
         self.name_to_attribute = attribute
 
-    def get_value(self, name, obj, *args, **kwargs):
+    def get_value(self, name, obj, context=None):
         return getattr(obj, self.name_to_attribute(name), MISSING)
 
-    def set_value(self, name, obj, value, *args, **kwargs):
+    def set_value(self, name, obj, value, context=None):
         setattr(obj, self.name_to_attribute(name), value)
 
 
@@ -1099,13 +1100,13 @@ class IndexField(Field):
             key = constant(key)
         self.name_to_key = key
 
-    def get_value(self, name, obj, *args, **kwargs):
+    def get_value(self, name, obj, context=None):
         try:
             return obj[self.name_to_key(name)]
         except KeyError:
             return MISSING
 
-    def set_value(self, name, obj, value, *args, **kwargs):
+    def set_value(self, name, obj, value, context=None):
         obj[self.name_to_key(name)] = value
 
 
@@ -1151,7 +1152,7 @@ class MethodField(Field):
         self.get_method = get
         self.set_method = set
 
-    def get_value(self, name, obj, context=None, *args, **kwargs):
+    def get_value(self, name, obj, context=None):
         if not self.get_method:
             return MISSING
 
@@ -1163,7 +1164,7 @@ class MethodField(Field):
             raise ValueError('Value of %s is not callable' % method_name)
         return make_context_aware(method, 0)(context)
 
-    def set_value(self, name, obj, value, context=None, *args, **kwargs):
+    def set_value(self, name, obj, value, context=None):
         if not self.set_method:
             return MISSING
 
@@ -1215,12 +1216,12 @@ class FunctionField(Field):
         self.get_func = get
         self.set_func = set
 
-    def get_value(self, name, obj, context=None, *args, **kwargs):
+    def get_value(self, name, obj, context=None):
         if self.get_func is None:
             return MISSING
         return self.get_func(obj, context)
 
-    def set_value(self, name, obj, value, context=None, *args, **kwargs):
+    def set_value(self, name, obj, value, context=None):
         if self.set_func is None:
             return MISSING
         self.set_func(obj, value, context)
