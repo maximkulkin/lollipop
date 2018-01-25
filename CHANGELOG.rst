@@ -1,6 +1,17 @@
 Changelog
 ---------
 
+1.1.6 (2018-01-25)
+++++++++++++++++++
+
+* Change List to not accept strings (as lists of one char strings)
+* Fix DictWithDefault values() method not conforming to Mapping API
+* Fix numeric types validation to not accept stringified numbers
+* Improve documentation on how to customize error messages
+* Fix missing IndexField export
+* Fix load_into handling DumpOnly fields
+* Simplify Type APIs by removing args and kwargs
+
 1.1.5 (2017-06-26)
 ++++++++++++++++++
 
