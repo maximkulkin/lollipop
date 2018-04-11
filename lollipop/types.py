@@ -29,6 +29,7 @@ __all__ = [
     'MethodField',
     'FunctionField',
     'Object',
+    'Modifier',
     'Constant',
     'Optional',
     'LoadOnly',
