@@ -708,6 +708,20 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
         assert exc_info.value.messages == \
             {'foo': Type.default_error_messages['required']}
 
+    def test_loading_fixed_dict_does_not_call_load_with_missing_if_key_is_present_but_has_validation_errors(self):
+        class MyType(String):
+            def __init__(self):
+                self.loaded = object()
+
+            def load(self, data, *args, **kwargs):
+                raise ValidationError({'inner_field': 'Error1'})
+
+        with pytest.raises(ValidationError) as exc_info:
+            Dict({'foo': String(), 'bar': MyType()})\
+                .load({'foo': 'hello', 'bar': 'baz'})
+
+        assert exc_info.value.messages == {'bar': {'inner_field': 'Error1'}}
+
     def test_loading_accepts_any_key_if_key_type_is_not_specified(self):
         assert Dict(Any())\
             .load({'123': 'foo', 456: 'bar'}) == {'123': 'foo', 456: 'bar'}

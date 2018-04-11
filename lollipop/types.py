@@ -855,7 +855,7 @@ class Dict(Type):
                 errors_builder.add_error(k, ve.messages)
 
         for k, value_type in iteritems(self.value_types):
-            if k in result:
+            if k in data:
                 continue
 
             try:
