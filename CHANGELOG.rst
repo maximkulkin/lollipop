@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+1.1.7 (2018-04-12)
+++++++++++++++++++
+
+* Fix Dict missing keys validation on load which resulted in multiple errors
+* Fix missing Modifier export
+
 1.1.6 (2018-01-25)
 ++++++++++++++++++
 
