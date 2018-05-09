@@ -1287,10 +1287,10 @@ class Object(Type):
         should take all fields values as keyword arguments.
     :param Field default_field_type: Default field type to use for fields defined
         by their type.
-    :param (bool, :class:`Type` or :class:`Field`) allow_extra_fields: If False,
-        it will raise :exc:`~lollipop.errors.ValidationError` for all extra dict
-        keys during deserialization. If True, will ignore all extra fields.
-        If Type or Field, extra fields will be loaded and validated with given
+    :param allow_extra_fields: If False, it will raise
+        :exc:`~lollipop.errors.ValidationError` for all extra dict keys during
+        deserialization. If True, will ignore all extra fields. If :class:`Type` or
+        :class:`Field`, extra fields will be loaded and validated with given
         type/field and stored in load result.
     :param only: Field name or list of field names to include in this object
         from it's base classes. All other base classes' fields won't be used.
