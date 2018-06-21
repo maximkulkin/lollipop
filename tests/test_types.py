@@ -214,6 +214,9 @@ class TestNumber(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
     def test_loading_float_value(self):
         assert Number().load(1.23) == 1.23
 
+    def test_loading_non_strict_integer(self):
+        assert Number(strict=False).load("123") == 123
+
     def test_loading_numeric_as_string(self):
         with pytest.raises(ValidationError) as exc_info:
             Number().load("123")

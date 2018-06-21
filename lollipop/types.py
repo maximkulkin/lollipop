@@ -165,6 +165,11 @@ class Any(Type):
 class Number(Type):
     """Any number type (integer/float).
 
+    :param bool strict: If True, it will allow to perform type casting
+        from string representation to numeric. If False, it will raise
+        :exc:`~lollipop.errors.ValidationError` for strint input during
+        deserialization.
+
     Error message keys:
         * invalid - invalid value type. Interpolation data:
                 * data - actual value
@@ -173,6 +178,10 @@ class Number(Type):
     default_error_messages = {
         'invalid': 'Value should be number',
     }
+
+    def __init__(self, strict=True, *args, **kwargs):
+        super(Number, self).__init__(**kwargs)
+        self.strict = strict
 
     def _normalize(self, value):
         try:
@@ -184,7 +193,7 @@ class Number(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if isinstance(data, string_types):
+        if self.strict and isinstance(data, string_types):
             self._fail('invalid')
 
         return super(Number, self).load(self._normalize(data), *args, **kwargs)
