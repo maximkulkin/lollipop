@@ -795,6 +795,12 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
         Dict(inner_type).load({'foo': 123}, context)
         assert inner_type.load_context == context
 
+    def test_loading_preserves_ordering_when_requested(self):
+        value = OrderedDict([(456, 'bar'), (123, 'foo'), ((789), ('baz'))])
+        assert Dict(Any(), key_type=Integer(), ordered=True).load(
+            value
+        ) == value
+
     def test_dumping_dict_with_custom_key_type(self):
         assert Dict(Any(), key_type=Transform(Integer(), post_dump=str))\
             .dump({123: 'foo', 456: 'bar'}) == {'123': 'foo', '456': 'bar'}
@@ -887,6 +893,12 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
         context = object()
         Dict(inner_type).dump({'foo': 123}, context)
         assert inner_type.dump_context == context
+
+    def test_dumping_preserves_ordering_when_requested(self):
+        value = OrderedDict([(456, 'bar'), (123, 'foo'), ((789), ('baz'))])
+        assert Dict(Any(), key_type=Integer(), ordered=True).dump(
+            value,
+        ) == value
 
 
 class TestOneOf:
