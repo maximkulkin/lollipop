@@ -806,6 +806,7 @@ class Dict(Type):
         of allowed keys to :class:`Type` instances (defaults to :class:`Any`)
     :param Type key_type: Type for dictionary keys (defaults to :class:`Any`).
         Can be used to either transform or validate dictionary keys.
+    :param bool ordered: Preserve items order of a dictionary.
     :param kwargs: Same keyword arguments as for :class:`Type`.
 
     Error message keys:
@@ -817,7 +818,7 @@ class Dict(Type):
         'invalid': 'Value should be dict',
     }
 
-    def __init__(self, value_types=None, key_type=None, **kwargs):
+    def __init__(self, value_types=None, key_type=None, ordered=False, **kwargs):
         super(Dict, self).__init__(**kwargs)
         if value_types is None:
             value_types = DictWithDefault(default=Any())
@@ -825,6 +826,7 @@ class Dict(Type):
             value_types = DictWithDefault(default=value_types)
         self.value_types = value_types
         self.key_type = key_type or Any()
+        self.ordered = ordered
 
     def load(self, data, *args, **kwargs):
         if data is MISSING or data is None:
@@ -834,7 +836,7 @@ class Dict(Type):
             self._fail('invalid', data=data)
 
         errors_builder = ValidationErrorBuilder()
-        result = {}
+        result = OrderedDict() if self.ordered else {}
         for k, v in iteritems(data):
             try:
                 k = self.key_type.load(k, *args, **kwargs)
@@ -878,7 +880,7 @@ class Dict(Type):
             self._fail('invalid', data=value)
 
         errors_builder = ValidationErrorBuilder()
-        result = {}
+        result = OrderedDict() if self.ordered else {}
         for k, v in iteritems(value):
             value_type = self.value_types.get(k)
             if value_type is None:
