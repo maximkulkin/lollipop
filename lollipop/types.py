@@ -174,6 +174,8 @@ class Number(Type):
         'invalid': 'Value should be number',
     }
 
+    _invalid_types = string_types + (bool,)
+
     def _normalize(self, value):
         try:
             return self.num_type(value)
@@ -184,7 +186,7 @@ class Number(Type):
         if data is MISSING or data is None:
             self._fail('required')
 
-        if isinstance(data, string_types):
+        if isinstance(data, self._invalid_types):
             self._fail('invalid')
 
         return super(Number, self).load(self._normalize(data), *args, **kwargs)

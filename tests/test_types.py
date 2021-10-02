@@ -219,9 +219,19 @@ class TestNumber(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
             Number().load("123")
         assert exc_info.value.messages == Number.default_error_messages['invalid']
 
-    def test_loading_non_numeric_value_raises_ValidationError(self):
+    def test_loading_string_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
             Number().load("abc")
+        assert exc_info.value.messages == Number.default_error_messages['invalid']
+
+    def test_loading_boolean_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Number().load(False)
+        assert exc_info.value.messages == Number.default_error_messages['invalid']
+
+    def test_loading_object_value_raises_ValidationError(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Number().load(object())
         assert exc_info.value.messages == Number.default_error_messages['invalid']
 
     def test_dumping_float_value(self):
