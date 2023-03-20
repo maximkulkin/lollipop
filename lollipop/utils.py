@@ -1,6 +1,6 @@
 import inspect
 import re
-from lollipop.compat import DictMixin, Sequence, Mapping, iterkeys
+from lollipop.compat import DictMixin, Sequence, Mapping, iterkeys, PY2
 
 
 def identity(value):
@@ -22,6 +22,16 @@ def is_mapping(value):
     """Returns True if value supports dict interface; False - otherwise"""
     return isinstance(value, Mapping)
 
+def get_arg_count(func):
+    """Calculates a number of arguments based on a signature."""
+
+    if PY2:
+        return len(inspect.getargspec(func).args)
+
+    spec = inspect.getfullargspec(func)
+
+    return len(spec.args) + len(spec.kwonlyargs)
+
 
 # Backward compatibility
 is_list = is_sequence
@@ -36,13 +46,13 @@ def make_context_aware(func, numargs):
     """
     try:
         if inspect.ismethod(func):
-            arg_count = len(inspect.getargspec(func).args) - 1
+            arg_count = get_arg_count(func) - 1
         elif inspect.isfunction(func):
-            arg_count = len(inspect.getargspec(func).args)
+            arg_count = get_arg_count(func)
         elif inspect.isclass(func):
-            arg_count = len(inspect.getargspec(func.__init__).args) - 1
+            arg_count = get_arg_count(func.__init__) - 1
         else:
-            arg_count = len(inspect.getargspec(func.__call__).args) - 1
+            arg_count = get_arg_count(func.__call__) - 1
     except TypeError:
         arg_count = numargs
 

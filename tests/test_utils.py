@@ -1,3 +1,4 @@
+import sys
 from lollipop.compat import iterkeys, itervalues, iteritems
 from lollipop.utils import call_with_context, to_camel_case, to_snake_case, \
     constant, identity, OpenStruct, DictWithDefault
@@ -28,6 +29,19 @@ class ObjClassDummy:
 
 
 class TestCallWithContext:
+    @pytest.mark.skipif(sys.version_info < (3, 8), reason='Requires python 3.8+')
+    def test_calls_complex_signature(self):
+        class NonLocal:
+            args = None
+
+        def func(a, b, /, c, *d, e=1, f=2, **g):
+            NonLocal.args = a, b, c, d, e, f, g
+            return 42
+
+        context = object()
+        assert call_with_context(func, context, 1, 'foo', True) == 42
+        assert NonLocal.args == (1, 'foo', True, (context,), 1, 2, {})
+
     def test_calls_function_with_given_arguments(self):
         class NonLocal:
             args = None
