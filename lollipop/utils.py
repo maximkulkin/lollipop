@@ -1,7 +1,6 @@
 import inspect
 import re
-from lollipop.compat import DictMixin, iterkeys
-import collections
+from lollipop.compat import DictMixin, Sequence, Mapping, iterkeys
 
 
 def identity(value):
@@ -17,11 +16,11 @@ def constant(value):
 
 def is_sequence(value):
     """Returns True if value supports list interface; False - otherwise"""
-    return isinstance(value, collections.Sequence)
+    return isinstance(value, Sequence)
 
 def is_mapping(value):
     """Returns True if value supports dict interface; False - otherwise"""
-    return isinstance(value, collections.Mapping)
+    return isinstance(value, Mapping)
 
 
 # Backward compatibility
