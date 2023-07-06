@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+1.1.8 (2023-07-05)
+++++++++++++++++++
+Support "ordered" for the Dict type
+Support PEP3102 and PEP570
+Use correct import paths for Mapping and Sequence
+Fix Number not reporting error for booleans
+Fix Object.allow_extra_fields documentation markup
+
 1.1.7 (2018-04-12)
 ++++++++++++++++++
 
