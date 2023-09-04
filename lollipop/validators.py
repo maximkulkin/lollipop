@@ -316,10 +316,8 @@ class Each(Validator):
         'invalid': 'Value should be collection',
     }
 
-    def __init__(self, validators, **kwargs):
+    def __init__(self, *validators, **kwargs):
         super(Validator, self).__init__(**kwargs)
-        if not is_sequence(validators):
-            validators = [validators]
         self.validators = validators
 
     def __call__(self, value, context=None):
