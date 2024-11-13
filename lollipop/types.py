@@ -1,8 +1,8 @@
 from lollipop.errors import ValidationError, ValidationErrorBuilder, \
-    ErrorMessagesMixin, merge_errors
+    ErrorMessagesMixin
 from lollipop.utils import is_sequence, is_mapping, make_context_aware, \
     constant, identity, OpenStruct, DictWithDefault
-from lollipop.compat import string_types, int_types, iteritems, OrderedDict
+from lollipop.compat import string_types, iteritems, OrderedDict
 import datetime
 
 
@@ -37,6 +37,7 @@ __all__ = [
     'Transform',
     'validated_type',
 ]
+
 
 class MissingType(object):
     def __repr__(self):
@@ -756,7 +757,7 @@ class OneOf(Type):
                 try:
                     result = item_type.load(data, *args, **kwargs)
                     return super(OneOf, self).load(result, *args, **kwargs)
-                except ValidationError as ve:
+                except ValidationError:
                     pass
 
             self._fail('no_type_matched', data=data)
@@ -779,7 +780,7 @@ class OneOf(Type):
                 try:
                     result = item_type.dump(data, *args, **kwargs)
                     return super(OneOf, self).dump(result, *args, **kwargs)
-                except ValidationError as ve:
+                except ValidationError:
                     pass
 
             self._fail('no_type_matched', data=data)
@@ -978,6 +979,7 @@ class Field(ErrorMessagesMixin):
 
     :param Type field_type: Field type.
     """
+
     def __init__(self, field_type, *args, **kwargs):
         super(Field, self).__init__(*args, **kwargs)
         self.field_type = field_type
@@ -989,7 +991,7 @@ class Field(ErrorMessagesMixin):
         :params obj: Object to get field value from.
         :returns: Field value.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def set_value(self, name, obj, value, context=None):
         """Set given value of field `name` to object `obj`.
@@ -998,7 +1000,7 @@ class Field(ErrorMessagesMixin):
         :params obj: Object to get field value from.
         :params value: Field value to set.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def load(self, name, data, context=None):
         """Deserialize data from primitive types. Raises
@@ -1071,6 +1073,7 @@ class AttributeField(Field):
         If callable, should take a single argument - name of field - and
         return name of corresponding object attribute to obtain value from.
     """
+
     def __init__(self, field_type, attribute=None, *args, **kwargs):
         super(AttributeField, self).__init__(field_type, *args, **kwargs)
         if attribute is None:
@@ -1097,6 +1100,7 @@ class IndexField(Field):
         If callable, should take a single argument - name of field - and
         return name of corresponding object key to obtain value from.
     """
+
     def __init__(self, field_type, key=None, *args, **kwargs):
         super(IndexField, self).__init__(field_type, *args, **kwargs)
         if key is None:
@@ -1146,6 +1150,7 @@ class MethodField(Field):
         Referenced method should take 1 argument - new field value to set.
     :param kwargs: Same keyword arguments as for :class:`Field`.
     """
+
     def __init__(self, field_type, get=None, set=None, *args, **kwargs):
         super(MethodField, self).__init__(field_type, *args, **kwargs)
         if get is not None:
@@ -1206,6 +1211,7 @@ class FunctionField(Field):
     :param callable set: Function that takes source object and new field value
         and sets that value to object field. Function return value is ignored.
     """
+
     def __init__(self, field_type, get=None, set=None, *args, **kwargs):
         super(FunctionField, self).__init__(field_type, *args, **kwargs)
         if get is not None and not callable(get):
@@ -1586,6 +1592,7 @@ class Modifier(Type):
 
     :param Type inner_type: Actual type that should be optional.
     """
+
     def __init__(self, inner_type, **kwargs):
         super(Modifier, self).__init__(
             **dict({'name': inner_type.name,
@@ -1632,6 +1639,7 @@ class Optional(Modifier):
         arguments to get value to use when value is missing on serialization.
     :param kwargs: Same keyword arguments as for :class:`Type`.
     """
+
     def __init__(self, inner_type,
                  load_default=None, dump_default=None,
                  **kwargs):
@@ -1679,6 +1687,7 @@ class LoadOnly(Modifier):
 
     :param Type inner_type: Data type.
     """
+
     def load(self, data, *args, **kwargs):
         return self.inner_type.load(data, *args, **kwargs)
 
@@ -1699,6 +1708,7 @@ class DumpOnly(Modifier):
 
     :param Type inner_type: Data type.
     """
+
     def load(self, data, *args, **kwargs):
         return MISSING
 
@@ -1740,6 +1750,7 @@ class Transform(Modifier):
         Argument should be a callable taking one argument - value - and returning
         updated value. Optionally it can take a second argument - context.
     """
+
     def __init__(self, inner_type,
                  pre_load=identity, post_load=identity,
                  pre_dump=identity, post_dump=identity):
@@ -1776,7 +1787,7 @@ def validated_type(base_type, name=None, validate=None):
         Ipv4Address = validated_type(
             String, 'Ipv4Address',
             # regexp simplified for demo purposes
-            Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address')
+            Regexp('^\\d+\\.\\d+\\.\\d+\\.\\d+$', error='Invalid IP address')
         )
 
         Percentage = validated_type(Integer, validate=Range(0, 100))
@@ -1786,7 +1797,7 @@ def validated_type(base_type, name=None, validate=None):
         class Ipv4Address(String):
             def __init__(self, *args, **kwargs):
                 super(Ipv4Address, self).__init__(*args, **kwargs)
-                self.validators.insert(0, Regexp('^\d+\.\d+\.\d+\.\d+$', error='Invalid IP address'))
+                self.validators.insert(0, Regexp('^\\d+\\.\\d+\\.\\d+\\.\\d+$', error='Invalid IP address'))
 
         class Percentage(Integer):
             def __init__(self, *args, **kwargs):

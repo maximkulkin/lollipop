@@ -33,7 +33,7 @@ class Validator(ErrorMessagesMixin, object):
         """Validate value. In case of errors, raise
         :exc:`~lollipop.errors.ValidationError`. Return value is always ignored.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class Predicate(Validator):
@@ -108,7 +108,7 @@ class Range(Validator):
 
     def __repr__(self):
         return '<{klass} {properties}>'.format(
-            klass= self.__class__.__name__,
+            klass=self.__class__.__name__,
             properties=' '.join(['%s=%s' % (k, repr(v))
                                  for k, v in iteritems({'min': self.min,
                                                         'max': self.max})
@@ -169,7 +169,7 @@ class Length(Validator):
             )
         else:
             return '<{klass} {properties}>'.format(
-                klass= self.__class__.__name__,
+                klass=self.__class__.__name__,
                 properties=' '.join(['%s=%s' % (k, repr(v))
                                     for k, v in iteritems({'min': self.min,
                                                            'max': self.max})

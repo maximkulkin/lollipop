@@ -49,6 +49,7 @@ class TypeRegistry(object):
             'author': lt.Object(TYPES['Person'], exclude='books'),
         }, constructor=Book))
     """
+
     def __init__(self):
         super(TypeRegistry, self).__init__()
         self._types = {}

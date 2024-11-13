@@ -34,6 +34,7 @@ class ValidationError(Exception):
     :param messages: Validation error messages. String, list of strings or dict
         where keys are nested fields and values are error messages.
     """
+
     def __init__(self, messages):
         super(ValidationError, self).__init__('Invalid data: %r' % messages)
         # TODO: normalize messages

@@ -10,7 +10,7 @@ import re
 def not_raises(exception_type):
     try:
         yield
-    except exception_type as err:
+    except exception_type:
         raise AssertionError(
             "Did raise exception {0} when it should not!".format(
                 repr(exception_type)

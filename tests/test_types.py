@@ -7,7 +7,6 @@ from lollipop.types import MISSING, ValidationError, Type, Any, String, \
     Dict, Field, AttributeField, IndexField, MethodField, FunctionField, \
     Constant, Object, Optional, LoadOnly, DumpOnly, Transform, \
     type_name_hint, dict_value_hint, validated_type
-from lollipop.errors import merge_errors
 from lollipop.validators import Validator, Predicate
 from lollipop.utils import to_camel_case
 from collections import namedtuple
@@ -31,12 +30,15 @@ def constant_fail_validator(message):
 def is_odd_validator():
     """Returns validator that checks if integer is odd"""
     return validator(lambda x: x % 2 == 1, is_odd_validator.message)
+
+
 is_odd_validator.message = 'Value should be odd'
 
 
 def divisible_by_validator(n):
     """Returns validator that checks if integer is divisible by given `n`"""
     return Predicate(lambda x: x % n == 0, 'Value should be divisible by %d' % n)
+
 
 def random_string():
     return str(uuid.uuid4())
@@ -97,6 +99,7 @@ class NameDescriptionTestsMixin(object):
     """Mixin that adds tests for adding name and description for type.
     Host class should define `tested_type` properties.
     """
+
     def test_name(self):
         assert self.tested_type(name='foo').name == 'foo'
 
@@ -109,6 +112,7 @@ class RequiredTestsMixin:
     """Mixin that adds tests for reacting to missing/None values during load/dump.
     Host class should define `tested_type` property.
     """
+
     def test_loading_missing_value_raises_required_error(self):
         with pytest.raises(ValidationError) as exc_info:
             self.tested_type().load(MISSING)
@@ -134,6 +138,7 @@ class ValidationTestsMixin:
     """Mixin that adds tests for reacting to validators.
     Host class should define `tested_type` and `valid_value` properties.
     """
+
     def test_loading_does_not_raise_ValidationError_if_validators_succeed(self):
         assert self.tested_type(
             validate=[constant_succeed_validator(),
@@ -299,8 +304,8 @@ class TestBoolean(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTests
     valid_value = True
 
     def test_loading_boolean_value(self):
-        assert Boolean().load(True) == True
-        assert Boolean().load(False) == False
+        assert Boolean().load(True) is True
+        assert Boolean().load(False) is False
 
     def test_loading_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -308,8 +313,8 @@ class TestBoolean(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTests
         assert exc_info.value.messages == Boolean.default_error_messages['invalid']
 
     def test_dumping_boolean_value(self):
-        assert Boolean().dump(True) == True
-        assert Boolean().dump(False) == False
+        assert Boolean().dump(True) is True
+        assert Boolean().dump(False) is False
 
     def test_dumping_non_boolean_value_raises_ValidationError(self):
         with pytest.raises(ValidationError) as exc_info:
@@ -340,7 +345,7 @@ class TestDateTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTest
         assert exc_info.value.messages == \
             DateTime.default_error_messages['invalid_type']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_load_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             DateTime(error_messages={
                 'invalid_type': 'Data {data} should be string',
@@ -385,7 +390,7 @@ class TestDateTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTest
             DateTime().dump(123)
         assert exc_info.value.messages == DateTime.default_error_messages['invalid']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_dump_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             DateTime(error_messages={
                 'invalid': 'Data {data} should be string',
@@ -413,7 +418,7 @@ class TestDate(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
             Date().load(123)
         assert exc_info.value.messages == Date.default_error_messages['invalid_type']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_load_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             Date(error_messages={
                 'invalid_type': 'Data {data} should be string',
@@ -453,7 +458,7 @@ class TestDate(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
             Date().dump(123)
         assert exc_info.value.messages == Date.default_error_messages['invalid']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_dump_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             Date(error_messages={
                 'invalid': 'Data {data} should be string',
@@ -478,7 +483,7 @@ class TestTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
             Time().load(123)
         assert exc_info.value.messages == Time.default_error_messages['invalid_type']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_load_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             Time(error_messages={
                 'invalid_type': 'Data {data} should be string',
@@ -515,7 +520,7 @@ class TestTime(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
             Time().dump(123)
         assert exc_info.value.messages == Time.default_error_messages['invalid']
 
-    def test_customizing_error_message_if_value_is_not_string(self):
+    def test_customizing_error_message_on_dump_if_value_is_not_string(self):
         with pytest.raises(ValidationError) as exc_info:
             Time(error_messages={
                 'invalid': 'Data {data} should be string',
@@ -554,10 +559,12 @@ class TestList(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
+
         def validate(value):
             validate.called += 1
+
         validate.called = 0
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValidationError):
             List(Integer(validate=is_odd_validator()),
                  validate=[constant_fail_validator(message1)]).load([1, 2, 3])
         assert validate.called == 0
@@ -661,7 +668,7 @@ class TestTuple(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMi
     def test_dumping_tuple_passes_context_to_inner_type_dump(self):
         inner_type = SpyType()
         context = object()
-        Tuple([inner_type, inner_type]).dump(('foo','foo'), context)
+        Tuple([inner_type, inner_type]).dump(('foo', 'foo'), context)
         assert inner_type.dump_context == context
 
 
@@ -773,10 +780,12 @@ class TestDict(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsMix
 
     def test_loading_does_not_validate_whole_list_if_items_have_errors(self):
         message1 = 'Something went wrong'
+
         def validate(value):
             validate.called += 1
+
         validate.called = 0
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValidationError):
             Dict(Integer(validate=is_odd_validator()),
                  validate=[constant_fail_validator(message1)]).load([1, 2, 3])
         assert validate.called == 0
@@ -1279,7 +1288,7 @@ class TestMethodField:
                 self._barBaz = value
 
         obj = Dummy()
-        field = MethodField(Any(), set=lambda name: to_camel_case('set_'+name))
+        field = MethodField(Any(), set=lambda name: to_camel_case('set_' + name))
 
         field.set_value('foo_bar', obj, 'goodbye')
         field.set_value('bar_baz', obj, 456)
@@ -1406,8 +1415,8 @@ class TestMethodField:
 class TestFunctionField:
     def test_get_value_returns_result_of_calling_configured_function_with_object(self):
         obj = MethodDummy()
-        assert FunctionField(Any(), get=lambda obj: obj.foo()+'abc')\
-            .get_value('quux', obj) == obj.foo()+'abc'
+        assert FunctionField(Any(), get=lambda obj: obj.foo() + 'abc')\
+            .get_value('quux', obj) == obj.foo() + 'abc'
 
     def test_get_value_returns_MISSING_if_get_func_is_not_specified(self):
         obj = MethodDummy()
@@ -1531,8 +1540,8 @@ class TestFunctionField:
 
     def test_dumping_result_of_given_function(self):
         obj = MethodDummy()
-        assert FunctionField(SpyType(), lambda o: o.foo()+'abc')\
-            .dump('foo', obj) == obj.foo()+'abc'
+        assert FunctionField(SpyType(), lambda o: o.foo() + 'abc')\
+            .dump('foo', obj) == obj.foo() + 'abc'
 
     def test_dumping_result_of_objects_method_with_field_type(self):
         field_type = SpyType()
@@ -1672,8 +1681,8 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         d = Object([a, b, c], {'d': Boolean()})
         e = Object([a, c, b], {'e': Boolean()})
 
-        assert d.allow_extra_fields == True
-        assert e.allow_extra_fields == False
+        assert d.allow_extra_fields is True
+        assert e.allow_extra_fields is False
 
     def test_immutable_is_unset_by_default(self):
         assert Object({'x': String()}).immutable is None
@@ -1686,8 +1695,8 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         d = Object([a, b, c], {'d': Boolean()})
         e = Object([a, c, b], {'e': Boolean()})
 
-        assert d.immutable == True
-        assert e.immutable == False
+        assert d.immutable is True
+        assert e.immutable is False
 
     def test_ordered_is_unset_by_default(self):
         assert Object({'x': String()}).ordered is None
@@ -1700,8 +1709,8 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         d = Object([a, b, c], {'d': Boolean()})
         e = Object([a, c, b], {'e': Boolean()})
 
-        assert d.ordered == True
-        assert e.ordered == False
+        assert d.ordered is True
+        assert e.ordered is False
 
     def test_loading_dict_value(self):
         assert Object({'foo': String(), 'bar': Integer()})\
@@ -2031,7 +2040,7 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
         foo = Foo(123, Bar('hello', False))
 
-        result = FooType.load_into(foo, {'bar': {'baz': 'goodbye'}})
+        FooType.load_into(foo, {'bar': {'baz': 'goodbye'}})
 
         assert foo.bar.baz == 'hello'
 
@@ -2099,7 +2108,7 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
         obj_type = Object({'foo': String()}, allow_extra_fields=Integer(),
                           constructor=AttributeDummy, immutable=True)
-        result = obj_type.load_into(obj, {'bar': 456})
+        obj_type.load_into(obj, {'bar': 456})
         assert obj.foo == 'hello'
         assert obj.bar == 123
 
@@ -2152,7 +2161,7 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
         foo = Foo(123, Bar('hello', 234))
 
-        result = FooType.load_into(foo, {'bar': {'bam': 456}})
+        FooType.load_into(foo, {'bar': {'bam': 456}})
 
         assert foo.bar.bam == 234
 
@@ -2291,7 +2300,7 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         invalid = String.default_error_messages['invalid']
 
         assert Object({'foo': String(), 'bar': Integer()})\
-                .validate_for(obj, {'foo': 123}) == {'foo': invalid}
+            .validate_for(obj, {'foo': 123}) == {'foo': invalid}
 
     def test_validating_data_for_existing_objects_returns_errors_if_validator_fails(self):
         obj = AttributeDummy()
@@ -2300,8 +2309,8 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
 
         error = 'Bad object'
         assert Object({'foo': String(), 'bar': Integer()},
-                   validate=constant_fail_validator(error))\
-                .validate_for(obj, {'foo': 'goodbye'}) == error
+                      validate=constant_fail_validator(error))\
+            .validate_for(obj, {'foo': 'goodbye'}) == error
 
     def test_validating_data_for_existing_objects_does_not_modify_original_objects(self):
         obj = AttributeDummy()
@@ -2396,10 +2405,10 @@ class TestObject(NameDescriptionTestsMixin, RequiredTestsMixin, ValidationTestsM
         assert MyType.dump({}) == {'foo': 'hello'}
 
     def test_dumping_fields_in_declared_order_if_ordered_is_True(self):
-        assert list(Object([('bar', Integer()), ('foo', String())], ordered=True)\
-            .dump(AttributeDummy()).keys()) == ['bar', 'foo']
-        assert list(Object(OrderedDict([('foo', String()), ('bar', Integer())]), ordered=True)\
-            .dump(AttributeDummy()).keys()) == ['foo', 'bar']
+        assert list(Object([('bar', Integer()), ('foo', String())], ordered=True)
+                    .dump(AttributeDummy()).keys()) == ['bar', 'foo']
+        assert list(Object(OrderedDict([('foo', String()), ('bar', Integer())]), ordered=True)
+                    .dump(AttributeDummy()).keys()) == ['foo', 'bar']
 
 
 class TestOptional:
@@ -2409,10 +2418,10 @@ class TestOptional:
         assert inner_type.loaded == 'foo'
 
     def test_loading_missing_value_returns_None(self):
-        assert Optional(Any()).load(MISSING) == None
+        assert Optional(Any()).load(MISSING) is None
 
     def test_loading_None_returns_None(self):
-        assert Optional(Any()).load(None) == None
+        assert Optional(Any()).load(None) is None
 
     def test_loading_missing_value_does_not_call_inner_type_load(self):
         inner_type = SpyType()
@@ -2465,10 +2474,10 @@ class TestOptional:
         assert inner_type.dumped == 'foo'
 
     def test_dumping_missing_value_returns_None(self):
-        assert Optional(Any()).dump(MISSING) == None
+        assert Optional(Any()).dump(MISSING) is None
 
     def test_dumping_None_returns_None(self):
-        assert Optional(Any()).dump(None) == None
+        assert Optional(Any()).dump(None) is None
 
     def test_dumping_missing_value_does_not_call_inner_type_dump(self):
         inner_type = SpyType()
@@ -2521,6 +2530,7 @@ class ProxyNameDescriptionTestsMixin(object):
     to an inner type.
     Host class should define `tested_type` properties.
     """
+
     def test_name(self):
         assert self.tested_type(Type(name='foo')).name == 'foo'
 
@@ -2589,7 +2599,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
 
     def test_loading_calls_inner_type_load_with_result_of_pre_load(self):
         inner_type = SpyType()
-        transform = Transform(inner_type, pre_load=lambda foo: 'bar').load('foo')
+        Transform(inner_type, pre_load=lambda foo: 'bar').load('foo')
         assert inner_type.loaded == 'bar'
 
     def test_loading_calls_post_load_with_result_of_inner_type_load(self):
@@ -2602,7 +2612,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
     def test_transform_passes_context_to_inner_type_load(self):
         inner_type = SpyType()
         context = object()
-        transform = Transform(inner_type).load('foo', context)
+        Transform(inner_type).load('foo', context)
         assert inner_type.load_context == context
 
     def test_transform_passes_context_to_pre_load(self):
@@ -2616,7 +2626,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
         inner_type = SpyType()
         context = object()
         transform = Transform(inner_type,
-                              post_load=lambda foo, context: [foo,context])
+                              post_load=lambda foo, context: [foo, context])
         assert transform.load('foo', context) == ['foo', context]
 
     def test_dumping_calls_pre_dump_with_original_value(self):
@@ -2630,7 +2640,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
 
     def test_dumping_calls_inner_type_dump_with_result_of_pre_dump(self):
         inner_type = SpyType()
-        transform = Transform(inner_type, pre_dump=lambda foo: 'bar').dump('foo')
+        Transform(inner_type, pre_dump=lambda foo: 'bar').dump('foo')
         assert inner_type.dumped == 'bar'
 
     def test_dumping_calls_post_dump_with_result_of_inner_type_dump(self):
@@ -2642,7 +2652,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
     def test_transform_passes_context_to_inner_type_dump(self):
         inner_type = SpyType()
         context = object()
-        transform = Transform(inner_type).dump('foo', context)
+        Transform(inner_type).dump('foo', context)
         assert inner_type.dump_context == context
 
     def test_transform_passes_context_to_pre_dump(self):
@@ -2656,7 +2666,7 @@ class TestTransform(ProxyNameDescriptionTestsMixin):
         inner_type = SpyType()
         context = object()
         transform = Transform(inner_type,
-                              post_dump=lambda foo, context: [foo,context])
+                              post_dump=lambda foo, context: [foo, context])
         assert transform.dump('foo', context) == ['foo', context]
 
 
@@ -2672,6 +2682,7 @@ class TestValidatedType:
 
     def test_accepts_context_unaware_validators(self):
         error_message = 'Value should be odd'
+
         def context_unaware_is_odd_validator(value):
             if value % 2 == 0:
                 raise ValidationError(error_message)

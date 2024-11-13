@@ -7,6 +7,7 @@ from lollipop.errors import ValidationError, ValidationErrorBuilder, merge_error
 
 CustomError = namedtuple('CustomError', ['code', 'message'])
 
+
 class TestMergeErrors:
 
     def test_merging_none_and_string(self):
@@ -126,7 +127,7 @@ class TestValidationErrorBuilder:
 
     def test_empty_errors(self):
         builder = ValidationErrorBuilder()
-        assert None == builder.errors
+        assert builder.errors is None
 
     def test_adding_field_error(self):
         builder = ValidationErrorBuilder()

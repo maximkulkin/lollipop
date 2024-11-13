@@ -8,17 +8,29 @@ if PY2:
     int_types = (int, long)
     unicode = unicode
     basestring = basestring
-    iterkeys = lambda d: d.iterkeys()
-    itervalues = lambda d: d.itervalues()
-    iteritems = lambda d: d.iteritems()
+
+    def iterkeys(d):
+        return d.iterkeys()
+
+    def itervalues(d):
+        return d.itervalues()
+
+    def iteritems(d):
+        return d.iteritems()
 else:
     string_types = (str,)
     int_types = (int,)
     unicode = str
     basestring = (str, bytes)
-    iterkeys = lambda d: d.keys()
-    itervalues = lambda d: d.values()
-    iteritems = lambda d: d.items()
+
+    def iterkeys(d):
+        return d.keys()
+
+    def itervalues(d):
+        return d.values()
+
+    def iteritems(d):
+        return d.items()
 
 if PY26:
     from .ordereddict import OrderedDict
@@ -35,3 +47,18 @@ else:
             MutableMapping as DictMixin,
             Mapping,
             Sequence)
+
+__all__ = [
+    'DictMixin',
+    'Mapping',
+    'OrderedDict',
+    'Sequence',
+
+    'string_types',
+    'int_types',
+    'unicode',
+    'basestring',
+    'iterkeys',
+    'itervalues',
+    'iteritems',
+]

@@ -143,7 +143,7 @@ class TestOpenStruct:
         o = OpenStruct({'foo': 'hello', 'bar': 123})
 
         with pytest.raises(KeyError):
-            x = o['baz']
+            o['baz']
 
     def test_setting_values(self):
         o = OpenStruct({'foo': 'hello'})
@@ -271,7 +271,7 @@ class TestOpenStruct:
         o = OpenStruct({'foo': 'hello'})
 
         with pytest.raises(AttributeError):
-            x = o.baz
+            o.baz
 
     def test_setattr(self):
         o = OpenStruct({'foo': 'hello'})
@@ -351,7 +351,7 @@ class TestDictWithDefault:
         assert sorted(DictWithDefault({'a': 1, 'b': 2}).values()) == [1, 2]
 
     def test_get(self):
-        assert DictWithDefault().get('foo') == None
+        assert DictWithDefault().get('foo') is None
         assert DictWithDefault(default=123).get('foo') == 123
 
     def test_get_with_custom_default(self):

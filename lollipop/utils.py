@@ -7,6 +7,7 @@ def identity(value):
     """Function that returns its argument."""
     return value
 
+
 def constant(value):
     """Returns function that takes any arguments and always returns given value."""
     def func(*args, **kwargs):
@@ -18,9 +19,11 @@ def is_sequence(value):
     """Returns True if value supports list interface; False - otherwise"""
     return isinstance(value, Sequence)
 
+
 def is_mapping(value):
     """Returns True if value supports dict interface; False - otherwise"""
     return isinstance(value, Mapping)
+
 
 def get_arg_count(func):
     """Calculates a number of arguments based on a signature."""
@@ -136,6 +139,7 @@ class DictWithDefault(DictMixin, object):
 
 class OpenStruct(DictMixin):
     """A dictionary that also allows accessing values through object attributes."""
+
     def __init__(self, data=None):
         self.__dict__.update({'_data': data or {}})
 
